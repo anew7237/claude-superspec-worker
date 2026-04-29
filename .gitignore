@@ -1,1 +1,75 @@
+# ============================================================
+# Claude Code credentials — never commit to git
+# Shared credentials = Anthropic ToS violation
+# Each team member uses their own Claude account
+# ============================================================
+.claude/.credentials.json
+.claude/credentials.json
+.claude/projects/
+.claude/todos/
+.claude/statsig/
+.claude/shell-snapshots/
+.claude/ide/
+.claude/settings.local.json
+.claude.json
+.claude.json.backup
+.credentials.json
+
+# ============================================================
+# Secrets / env
+# ============================================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ============================================================
+# Docker / dev container personal overrides
+# ============================================================
+docker-compose.override.yml
+.devcontainer/devcontainer.local.json
+
+# ============================================================
+# Node / TypeScript
+# ============================================================
+node_modules/
+dist/
+coverage/
+.vitest-cache/
+.pnpm-store/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ============================================================
+# IDE
+# ============================================================
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.shared.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# Logs
+# ============================================================
+*.log
+logs/
+
+# ============================================================
+# Spec-Kit extension cache(個人 / 機器 specific,不進 git)
+# ============================================================
 .specify/extensions/.cache/
+
