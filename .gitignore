@@ -23,6 +23,7 @@
 .env.*.local
 *.pem
 *.key
+.dev.vars
 
 # ============================================================
 # Docker / dev container personal overrides
