@@ -5,6 +5,14 @@
 **Status**: Draft
 **Input**: User description: "把現有 Node baseline + monorepo 結構規格化為 fresh spec"
 
+## Clarifications
+
+### Session 2026-04-30
+
+- Q: Adopter fork 後只保留單一 runtime(僅 Node 端 / 僅 Worker 端)是否仍視為合格 derivative? → A: 兩種單一 runtime 都是合格 derivative — 只要保留 `.devcontainer/` 與 spec-kit pipeline 即可,對稱地對應 `claude-superspec-nodejs` sibling 既存的「node-only world」案例。
+- Q: Worker 端 vitest+miniflare 跨主機(Mac M1 vs WSL2)的 parity 標準為何? → A: 與 Node 端同標準 — test/typecheck/lint 結果 100% 等價(pass/fail count + 訊息一致)。理由:miniflare 為 platform-neutral V8 sandbox,且 Worker tests 實際在 dev container 的 Node runtime 內跑,既然 dev container 跨主機鏡像一致(FR-017),其結果亦應一致。
+- Q: FR-022 cross-runtime import ban 在 v1.0.0 ratification 時(雙 tsconfig 尚未存在、`src/worker/` 與 `@cloudflare/workers-types` 尚未引入)的 enforcement 機制為何? → A: FR-022 為 aspirational rule — 規則存在但 enforcement 尚未啟動;v1.0.0 時 SC-011 不可量化,違規計數從 002 落地、雙 tsconfig 與 Workers types 安裝完成後正式開始。在此之前,Worker 端不存在 → 違規空間客觀為 0,無計算意義。
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - 新成員從零到第一次跑起 Node 應用 stack (Priority: P1)
@@ -163,11 +171,11 @@ lockfile)。
 - **FR-015**: Node 端 production image MUST 將 dev-only 與 production-only 的 image 層分離 — production stage 不含 build 工具、測試框架、開發依賴。
 - **FR-016**: Monorepo MUST 使每個非 trivial feature 在獨立的 spec-kit branch(`NNN-feature-name`)上開發;直接於 `main` 上做非 trivial 變更不被允許。
 - **FR-017**: Monorepo MUST 確保 CI 與 dev container 使用同一份 base image(Node 端);Worker 端 CI 使用同一份 wrangler / vitest pool 版本,讓「CI 綠」⇔「本地 container 綠」。
-- **FR-018**: Monorepo MUST 提供 reference application 以 demonstrate 上述全部規範(Node 端為 Hono on `@hono/node-server`、`pg`、`redis`、`pino`、`prom-client` 的 stack;Worker 端的 reference 由 002-cloudflare-worker 提供)。Adopter 可替換或刪除範例。**Derivative 契約最低限**:只要保留容器化(`.devcontainer/`)與 SDD pipeline(`/speckit-*` 與 `specs/NNN-*/`)兩條,即仍視為本 monorepo 的 derivative;TDD、observability defaults、LF 行尾、non-root prod、跨平台 parity 等規範在 stack 替換後降為 advisory。
+- **FR-018**: Monorepo MUST 提供 reference application 以 demonstrate 上述全部規範(Node 端為 Hono on `@hono/node-server`、`pg`、`redis`、`pino`、`prom-client` 的 stack;Worker 端的 reference 由 002-cloudflare-worker 提供)。Adopter 可替換或刪除範例。**Derivative 契約最低限**:只要保留容器化(`.devcontainer/`)與 SDD pipeline(`/speckit-*` 與 `specs/NNN-*/`)兩條,即仍視為本 monorepo 的 derivative。**單一 runtime fork**(僅保留 Node 端、或僅保留 Worker 端)亦為合格 derivative — 對稱地對應 `claude-superspec-nodejs` sibling 既存的「node-only world」案例。TDD、observability defaults、LF 行尾、non-root prod、跨平台 parity 等規範在 stack 替換後降為 advisory。
 - **FR-019**: Monorepo MUST 要求工具鏈版本變更(spec-kit、Claude Code、superpowers、wrangler、vitest、pnpm 等)為「孤立 commit」,不夾帶其他重構或行為變更,以利獨立 revert。
 - **FR-020**: Monorepo MUST 對上游服務 outage 提供「容器內快取繼續工作」的 degraded mode — 已 build 完成的 devcontainer + 本機 image + cache 認證下,「無需新外部資源」的本地操作(寫程式、跑既有測試、`git commit`)不應被阻擋;需新拉資源(新 image build、新依賴 install、重新 OAuth、工具鏈升級、`wrangler deploy`)的操作可阻塞,且失敗訊息須清楚指出阻塞原因為「上游不可達」。
 - **FR-021**: 應用源碼 MUST 依「runtime 切分」組織於 `src/` 下:`src/node/` 為 Node runtime 入口與模組,`src/worker/` 為 Cloudflare Worker runtime 入口與模組(由 002-cloudflare-worker 實際落地;v1.0.0 ratification 時為 reserved 路徑),`src/shared/` 為兩 runtime 共用的純型別與常數模組(亦 reserved)。Node 端與 Worker 端的 source 與 test 互不交錯(`tests/node/` vs `tests/worker/`)。
-- **FR-022**: 觀測 / runtime 隔離 MUST 體現在工具鏈設定上:Node 與 Worker 兩 runtime 的 typecheck 與 test 設定分開,使得 Node 專屬模組(`pg`、`redis`、`pino`、`prom-client`、`@hono/node-server`、`fs`、`child_process` 等)不可被 Worker 端 import,反之亦然。具體 config 檔結構與檔名屬於 002-cloudflare-worker 的設計範圍,但 001 baseline 規範此隔離必須在 typecheck 階段就能擋下違規,而非延遲到 runtime / wrangler bundle 階段。
+- **FR-022**: 觀測 / runtime 隔離 MUST 體現在工具鏈設定上:Node 與 Worker 兩 runtime 的 typecheck 與 test 設定分開,使得 Node 專屬模組(`pg`、`redis`、`pino`、`prom-client`、`@hono/node-server`、`fs`、`child_process` 等)不可被 Worker 端 import,反之亦然。具體 config 檔結構與檔名屬於 002-cloudflare-worker 的設計範圍,但 001 baseline 規範此隔離最終必須在 typecheck 階段就能擋下違規,而非延遲到 runtime / wrangler bundle 階段。**v1.0.0 ratification 時為 aspirational rule** — 雙 tsconfig 結構與 Workers types 安裝由 002 落地;在那之前,規則在 spec 中存在但 enforcement 尚未啟動,Worker 端缺席使得「違規空間」客觀為 0。
 
 ### Key Entities
 
@@ -185,7 +193,7 @@ lockfile)。
 ### Measurable Outcomes
 
 - **SC-001**: 新成員從零(僅 Docker、IDE、Git)到 Node 應用 stack 全綠 healthcheck,首次 build 完成 ≤ 15 分鐘;後續 reopen container ≤ 3 分鐘。
-- **SC-002**: 同一個 commit 在 macOS Apple Silicon 與 WSL2 Ubuntu 主機上的容器內,test、typecheck、lint 三項結果(pass/fail count 與訊息)100% 等價(Node 端);Worker 端因 miniflare 平台中立,跨主機差異忽略不計。
+- **SC-002**: 同一個 commit 在 macOS Apple Silicon 與 WSL2 Ubuntu 主機上,test、typecheck、lint 三項結果(pass/fail count 與訊息)100% 等價,涵蓋 **Node 端**(於容器內跑)與 **Worker 端**(於 dev container 內透過 vitest + miniflare 跑)。容器層級非語意性差異(如時間戳、絕對路徑前綴)允許,任何測試級別的「同一 test 一邊 pass / 另一邊 fail」即視為 parity 缺陷(計入 SC-008 季度配額)。
 - **SC-003**: 100% 的「未獲 reviewer 豁免」PR 對應到一個 `specs/NNN-*/` 目錄(spec、plan、tasks 齊備),否則無法通過 PR review;豁免案的 PR comment 中可定位到 reviewer 的明示豁免紀錄。
 - **SC-004**: 在 Node 範例應用上,任何新加入的 HTTP route 在無額外接線的前提下,於 `/metrics` 端點 1 分鐘內可見其 counter 與 histogram(0 行樣板程式碼、0 個忘了接線的 route)。
 - **SC-005**: 工具鏈升級 commit 的可單獨 revert 通過率 = 100%(revert 後系統仍可運作、無編譯/測試錯誤)。
@@ -194,7 +202,7 @@ lockfile)。
 - **SC-008**: 容器內執行的 quality gates(test/typecheck/lint)若於宿主端意外執行通過、卻於容器失敗,被視為缺陷;此類「container parity 缺陷」每季 ≤ 1 件。
 - **SC-009**: `console.log` 等 ad-hoc stdout 寫入於 **Node 端應用碼**(`src/node/**/*.ts`)中的出現次數 = 0(以靜態檢查或 PR review 確認;Worker 端因 console 為 Workers 上的標準輸出通道,不受此限)。
 - **SC-010**: 任何 incident 從第一個錯誤 log 出現到 alerting 系統收到對應 metric 偏移的時間 ≤ 1 分鐘(Node 端;因 metrics + structured logs + healthcheck 預設就位)。
-- **SC-011**: Node 端模組與 Worker 端模組之間的「跨 runtime import 違規」(Node 端 import D1/KV 型別、或 Worker 端 import `pg`/`redis`/`pino`/`prom-client`)在 PR merge 前 0 次發生 — 由 typecheck 機械擋下,而非 reviewer 人工抓。
+- **SC-011**: Node 端模組與 Worker 端模組之間的「跨 runtime import 違規」(Node 端 import D1/KV 型別、或 Worker 端 import `pg`/`redis`/`pino`/`prom-client`)在 PR merge 前 0 次發生 — 由 typecheck 機械擋下,而非 reviewer 人工抓。**生效時點**:此 SC 自 002-cloudflare-worker 落地(雙 tsconfig + Workers types 就位)後正式開始計算違規數;在此之前 Worker 端不存在,違規空間客觀為 0,SC-011 不可量化。
 
 ## Assumptions
 
