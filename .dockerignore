@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+.vitest-cache
+.git
+.github
+.docs
+.specify
+.claude
+.devcontainer
+.env
+.env.*
+*.log

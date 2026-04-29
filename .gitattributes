@@ -1,0 +1,28 @@
+# ============================================================
+# 跨平台行尾結束符統一(Mac/Linux LF,避免 Windows 端 CRLF 污染)
+# ============================================================
+* text=auto eol=lf
+
+# Shell scripts 必須 LF,不然在 Linux 會壞
+*.sh text eol=lf
+
+# Windows 原生檔案保留 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Spec-Kit 擴充 vendor 過來的 .ps1 維持 LF,跟上游 byte-for-byte 一致
+# (devcontainer 內 powershell 也吃 LF;避免每次 specify upgrade 都產生噪音 diff)
+.specify/extensions/**/*.ps1 text eol=lf
+
+# 二進位
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
