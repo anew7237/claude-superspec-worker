@@ -1,0 +1,111 @@
+
+services:
+  # ----------------------------------------------------------
+  # app:nodejs(ts)
+  # ----------------------------------------------------------
+  app:
+    build:
+      context: .
+      target: dev  # 用 multi-stage 的 dev stage
+    container_name: ${COMPOSE_PROJECT_NAME:-mynodejs}-app
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://app:${DB_PASSWORD:-dev}@db:5432/app
+      REDIS_URL: redis://redis:6379/0
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      PORT: "8000"
+      # enabled (fail-open); set to 'false' to disable httpMetrics middleware.
+      HTTP_METRICS_ENABLED: ${HTTP_METRICS_ENABLED:-}
+    volumes:
+      # 把專案根目錄 mount 進去,程式碼改了直接生效(熱重載)
+      #
+      # 重要:從 dev container 內透過 docker-outside-of-docker 呼叫 compose
+      # 時,compose 只把路徑字串傳給 host docker daemon,不做路徑翻譯。
+      # "." 會變成 devcontainer 內路徑 /workspaces/xxx,host daemon 找不到
+      # → 新容器 /app 會是空的。
+      # devcontainer.json 的 containerEnv 會把 host 絕對路徑放進
+      # LOCAL_WORKSPACE_FOLDER;host 直接 run 時變數沒定義則 fallback "."
+      - ${LOCAL_WORKSPACE_FOLDER:-.}:/app
+      # 用 named volume 保護 node_modules,不被 host mount 蓋掉
+      # 也避免 Mac osxfs / WSL2 跨檔案系統 IO 拖慢
+      - app-node_modules:/app/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:8000/health').then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # ----------------------------------------------------------
+  # db:Postgres 16
+  # ----------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-mynodejs}-db
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-dev}
+      POSTGRES_DB: app
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      # 第一次啟動會自動執行這個目錄下的 .sql / .sh
+      # 同 app service 的 bind mount,使用 LOCAL_WORKSPACE_FOLDER 修 DooD
+      # 路徑翻譯(Mac Docker Desktop 嚴格檢查 File Sharing,對 devcontainer
+      # 內部路徑 /workspaces/... 會 mount denied;WSL 寬容所以沒踩到)。
+      - ${LOCAL_WORKSPACE_FOLDER:-.}/scripts/db-init:/docker-entrypoint-initdb.d:ro
+    ports:
+      # 只暴露給 host 開發用,production 不該開
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ----------------------------------------------------------
+  # redis:cache / queue
+  # ----------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-mynodejs}-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+# ============================================================
+# Named volumes
+#   build artifact / DB 資料用 named volume,而不是 bind mount,
+#   原因:
+#     - Mac osxfs 對大量小檔案 IO 非常慢(node_modules、venv)
+#     - WSL2 跨 /mnt/c 也很慢,放 /home/xxx 才順
+#     - named volume 在 Linux VM 內,跑 native 速度
+# ============================================================
+volumes:
+  app-node_modules:
+  db-data:
+  redis-data:
+
+# ============================================================
+# Networks
+#   預設會建立一個 bridge,所有 service 自動加入,可用 service
+#   名稱互相訪問(例如 app 連 db 用 host=db)
+#   要自訂網路再加 networks: 區段
+# ============================================================
