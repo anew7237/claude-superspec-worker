@@ -26,9 +26,9 @@
 **Attributes**:
 - `image_definition`:`Dockerfile` 於 `.devcontainer/Dockerfile`(uv + 系統工具 base;node + claude + git + gh + DooD 由 features 引入)
 - `features`:`claude-code:1` + `docker-outside-of-docker:1` + `node:1` + `git:1` + `github-cli:1`
-- `mounts`:`~/.claude` (host bind, FR-007)、`~/.claude.json` (host bind)、bash history(named volume)、`${localEnv:SSH_AUTH_SOCK}` → `/ssh-agent` (FR-014)
+- `mounts`:`~/.claude` (host bind, FR-007)、`~/.claude.json` (host bind)、bash history(named volume)。**SSH agent forwarding(FR-014)無顯式 bind**,改由 VS Code Dev Containers 內建機制處理(issue #1 修補後)
 - `lifecycle_hooks`:`postCreateCommand: bash .devcontainer/post-create.sh`、`postStartCommand: sudo /usr/local/bin/init-firewall.sh || ...`
-- `containerEnv`:`LOCAL_WORKSPACE_FOLDER`(host abs path,for DooD)、`COREPACK_ENABLE_DOWNLOAD_PROMPT=0`、`SSH_AUTH_SOCK=/ssh-agent`
+- `containerEnv`:`LOCAL_WORKSPACE_FOLDER`(host abs path,for DooD)、`COREPACK_ENABLE_DOWNLOAD_PROMPT=0`。**`SSH_AUTH_SOCK` 不在此 set**(VS Code 於 terminal attach 時 override 為 `/tmp/vscode-ssh-auth-<uuid>.sock`,本檔顯式 set 為裝飾)
 - `idempotency`:`postCreateCommand` MUST 多次重建仍正確(`post-create.sh` 內有 `[ ! -d ".specify" ]` 等 guard)
 
 **Invariants**:
