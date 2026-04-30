@@ -77,7 +77,7 @@
 | FR-011 | Node 端 production image 非 root | ✅ | `Dockerfile` runtime stage `USER app` 顯式 |
 | FR-012 | build artifact 不跨主機 bind-mount | ✅ | `docker-compose.yml` `app-node_modules` named volume;`.dockerignore` / `.gitignore` 排除 |
 | FR-013 | `/speckit-implement` 前人類 review gate(可作者本人) | ✅ | spec-kit `/speckit-implement` skill 內建 review prompt;憲法 Principle V 規範 |
-| FR-014 | SCM credential 由 host 轉發 | ✅ | `.devcontainer/devcontainer.json` mount `${localEnv:SSH_AUTH_SOCK}` → `/ssh-agent`;`post-create.sh` sanity check |
+| FR-014 | SCM credential 由 host 轉發 | ✅ | 由 VS Code Dev Containers 內建 SSH agent forwarding 處理(terminal attach 時 inject `/tmp/vscode-ssh-auth-*.sock` + 對應 `SSH_AUTH_SOCK` env;Mac M1 + WSL2 雙平台已驗 — `ssh -T git@github.com` 通);**先前顯式 `${localEnv:SSH_AUTH_SOCK}` mount 在 Mac launchd path 上 hard-fail,已於 issue #1 修補移除**(commit `8b699c7`)。`post-create.sh:209-230` SSH sanity check 提示 host 端 `ssh-add` 為前提條件 |
 | FR-015 | dev / production image 層分離 | ✅ | `Dockerfile` multi-stage(`base` / `deps` / `dev` / `build` / `prod-deps` / `runtime`) |
 | FR-016 | feature branch 隔離(`NNN-name`) | ✅ | spec-kit `before_specify=speckit-git-feature` mandatory hook 強制 |
 | FR-017 | CI 與 dev container 同 base image | ⚠ | dev container 已就位;**CI workflow 尚未建立**(此 monorepo `.github/` 不存在,屬 known gap);follow-up:於後續 feature(可能為 003 或 002 結束後的維運 feature)補入 `.github/workflows/ci.yml` |
