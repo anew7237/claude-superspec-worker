@@ -1,0 +1,12 @@
+# Local secrets for `wrangler dev`. Copy to .dev.vars and edit:
+#   cp .dev.vars.example .dev.vars
+#
+# Mode A (host-only): `pnpm dev:node + dev:worker`
+#   UPSTREAM_URL=http://localhost:8000
+#
+# Mode B (docker compose): `make up + dev:worker`
+#   UPSTREAM_URL=http://host.docker.internal:8000
+#   (Linux 自架 Docker Engine 需 .devcontainer/devcontainer.json
+#    runArgs 加 --add-host=host.docker.internal:host-gateway)
+
+UPSTREAM_URL=http://localhost:8000

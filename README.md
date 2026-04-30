@@ -39,6 +39,183 @@
 
 > 後續 feature spec 將沿用此結構,於 `specs/<NNN-feature-name>/` 下產出。
 
+`specs/002-cloudflare-worker/` 為 002 dual-runtime feature(本 README 下一段 "Dual-Runtime
+(Node + Cloudflare Worker)" 介紹其 adopter-facing 面):
+
+- [`specs/002-cloudflare-worker/spec.md`](specs/002-cloudflare-worker/spec.md) — 5 user stories / 17 FR / 11 SC / 15 edge cases / 1 clarification
+- [`specs/002-cloudflare-worker/plan.md`](specs/002-cloudflare-worker/plan.md) — Worker runtime + monorepo dual-runtime refactor
+- [`specs/002-cloudflare-worker/contracts/`](specs/002-cloudflare-worker/contracts/) — 4 contracts(worker-routes / reverse-proxy / bindings / dual-tsconfig)
+- [`specs/002-cloudflare-worker/quickstart.md`](specs/002-cloudflare-worker/quickstart.md) — Mode A / B / C 完整 walkthrough(本 README 之 Mode 段為摘要版)
+
+---
+
+## Dual-Runtime(Node + Cloudflare Worker)
+
+本 template 自 002 feature 起為 **dual-runtime monorepo** — 同一 repo 同時養 Node 端
+(Hono on Node.js,Postgres + Redis backed,既有 001 baseline)與 Cloudflare Worker 端
+(Hono on Workers runtime,D1 + KV bindings,002 新增)。兩 runtime 共用 `src/shared/**`
+之純 type / pure-function utility,但**不互相 import**(per dual-tsconfig contract,
+mechanical fence 由 `tsconfig.node.json` / `tsconfig.worker.json` `include` glob 提供)。
+
+Worker 端額外承載 **reverse proxy**(`ALL /app-api/*`)— passthrough 至 `UPSTREAM_URL`
+所指的 Node 端 origin,讓 adopter 可同一 entrypoint(Worker URL)同時 demo "Cloudflare-
+native(D1 / KV)" 與 "edge-then-origin(Postgres / Redis via Node)" 兩種架構。
+
+### 對照表 — 3 demo concept × 2 runtime
+
+| Demo concept        | Cloudflare-native(Worker side)                                              | Through Node proxy(Worker → Node)                                                                                       |
+| ------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **health**          | `GET /health` → 200 `{status:"ok",service:"worker",ts:<ISO>}`               | `GET /app-api/health` → 200 `{status:"ok",service:"nodejs"}`(Worker passthrough → Node)                                 |
+| **now**(timestamp)  | `GET /d1/now` → 200 `{source:"d1",now:<ts>}`(D1 `SELECT CURRENT_TIMESTAMP`) | `GET /app-api/now` → 200 `{source:"postgres",now:<ts>}`(Worker passthrough → Node `pool.query`)                         |
+| **echo**(key/value) | `GET /kv/echo?k=foo` → 200 `{source:"kv",key:"foo",value:<KV value>}`       | `GET /app-api/echo?k=foo` → 200 `{source:"redis",key:"foo",value:<redis value>}`(Worker passthrough → Node `redis.get`) |
+
+> 6 條 endpoint 在 Mode B(完整 demo)應全 200,byte-equivalent 於上表 body shape。
+> Mode A(quick demo)之 Through-Node-proxy 一行因無 Postgres/Redis backing 預期 5xx,
+> 屬預期落差。詳細契約見
+> [`specs/002-cloudflare-worker/contracts/worker-routes.md`](specs/002-cloudflare-worker/contracts/worker-routes.md)
+> 與
+> [`specs/002-cloudflare-worker/contracts/reverse-proxy.md`](specs/002-cloudflare-worker/contracts/reverse-proxy.md)。
+
+### 三種跑法概覽
+
+| Mode           | 場景                                           | 命令                                                  | 預算    | 備註                                                     |
+| -------------- | ---------------------------------------------- | ----------------------------------------------------- | ------- | -------------------------------------------------------- |
+| **A — quick**  | 本機 host process,只想看 Worker 邊本身         | `pnpm dev:node` + `pnpm dev:worker`                   | ~5 min  | `/app-api/now` `/app-api/echo` 預期 5xx(無 docker stack) |
+| **B — full**   | docker compose 帶 Postgres + Redis,看完整 6 條 | `make up` + `pnpm dev:worker`                         | ~10 min | 推薦的 canonical 路徑(per SC-011 實測 67 秒)             |
+| **C — deploy** | 首次部署上 Cloudflare edge                     | `wrangler login` → `d1/kv create` → `wrangler deploy` | ≤30 min | per FR-012 + SC-005                                      |
+
+詳細逐步見下方 "Running locally(Mode A / B)" 與 "First-time deploy(Mode C)";
+完整版逐行 curl + cleanup 見
+[`specs/002-cloudflare-worker/quickstart.md`](specs/002-cloudflare-worker/quickstart.md)。
+
+---
+
+## Running locally(Mode A / B)
+
+### Mode A — quick demo(~5 min,host process only)
+
+於 dev container 內 terminal:
+
+```bash
+pnpm install --frozen-lockfile
+
+# Mode A 注記:src/node/index.ts 在 serve() 之前先做 await redis.connect()
+# (001 baseline DEV-003 fail-fast)。Mode A 跑 pnpm dev:node 需 host 端有 redis 才不會
+# 啟動失敗。最簡單:起一個 ephemeral docker redis(完全不需 docker compose 整個 stack):
+docker run --rm -d -p 127.0.0.1:6379:6379 --name modea-redis redis:7-alpine
+
+pnpm dev:node &      # :8000
+pnpm dev:worker &    # :8787
+sleep 5
+
+curl -sS http://localhost:8787/health                 # → {"status":"ok","service":"worker",...}
+curl -sS http://localhost:8787/d1/now                 # → {"source":"d1","now":"..."}
+curl -sS http://localhost:8000/app-api/health         # → {"status":"ok","service":"nodejs"}
+curl -sS http://localhost:8787/app-api/health         # → 同上(Worker → Node 透傳)
+
+# 收場
+kill %1 %2
+docker stop modea-redis
+```
+
+`UPSTREAM_URL` 在 Mode A **預設為 `http://localhost:8000`**(Worker dev 跑於 host,localhost
+即 Node 端)。Mode A 不 seed Postgres / KV,故 `/app-api/now` `/app-api/echo` `/kv/echo` 之
+完整 demo 留給 Mode B。**或者**完全跳過 `pnpm dev:node`,只跑 `pnpm dev:worker` — Worker
+`/health` `/d1/now` `/kv/echo` 仍可獨立跑(`/app-api/*` 將回 502/504,Worker 端本身仍健康)。
+
+### Mode B — full demo(~10 min,docker compose + Worker)
+
+於 dev container 內 terminal:
+
+```bash
+pnpm install --frozen-lockfile
+
+# 設定 .dev.vars(本檔 gitignored,複製自 .dev.vars.example template)
+cp .dev.vars.example .dev.vars
+# 編輯 .dev.vars,UPSTREAM_URL 視 Docker 環境設定(見下表)
+
+make up                                                            # 三 service(app/db/redis)healthy
+docker compose exec redis redis-cli SET foo "hello-from-redis"     # OK
+pnpm dev:worker &                                                   # :8787
+sleep 3
+pnpm exec wrangler kv key put --binding=KV foo "hello-from-kv" --local   # OK
+
+# 7 條 curl
+curl -sS http://localhost:8787/health
+curl -sS http://localhost:8787/d1/now
+curl -sS 'http://localhost:8787/kv/echo?k=foo'
+curl -sS http://localhost:8787/app-api/health
+curl -sS http://localhost:8787/app-api/now
+curl -sS 'http://localhost:8787/app-api/echo?k=foo'
+
+# 收場
+kill %1
+make down
+```
+
+**`UPSTREAM_URL` 該設什麼**(於 `.dev.vars`):
+
+| 你的環境                                           | 建議值                                                                                                                                  | 備註                                            |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| Mac/Win Docker Desktop,wrangler 跑於 host          | `http://localhost:8000`                                                                                                                 | docker compose publish `:8000` 至 host loopback |
+| Dev container 內 wrangler(Docker Desktop)          | `http://host.docker.internal:8000`                                                                                                      | Docker Desktop 自動提供此 alias                 |
+| Linux 自架 Docker Engine,dev container 內 wrangler | `http://host.docker.internal:8000` + `.devcontainer/devcontainer.json` 加 `"runArgs": ["--add-host=host.docker.internal:host-gateway"]` | Linux Engine 不自動提供 alias                   |
+| WSL2 host wrangler(無 Docker Desktop)              | `http://localhost:8000`                                                                                                                 | 已實測;見 quickstart §T036                      |
+
+> Mode B 已實測 **67 秒** 完成完整 7 條 curl(per SC-011 預算 ≤ 10 min,實測耗用率 ~11%),
+> 詳細時序見
+> [`specs/002-cloudflare-worker/quickstart.md` §T036](specs/002-cloudflare-worker/quickstart.md)。
+
+---
+
+## First-time deploy(Mode C,~30 min)
+
+需 Cloudflare account(free tier 即足夠 demo)。**`wrangler.jsonc` 之 `database_id` /
+`id` 為 placeholder,首次部署前必須換成 `wrangler d1 create` / `wrangler kv namespace
+create` 回傳的真 ID**。
+
+```bash
+# 1. 登入(host 或 dev container 皆可,會跳 browser-based OAuth)
+pnpm exec wrangler login
+
+# 2. 建 D1,記下 database_id 填入 wrangler.jsonc d1_databases[0].database_id
+pnpm exec wrangler d1 create claude-superspec-worker
+
+# 3. 建 KV,記下 id 填入 wrangler.jsonc kv_namespaces[0].id
+pnpm exec wrangler kv namespace create KV
+
+# 4. (可選)seed 部署 KV,讓 /kv/echo demo 不空
+pnpm exec wrangler kv key put --binding=KV foo "hello-from-kv-prod" --remote
+
+# 5. (可選)若想讓部署的 Worker 透傳到你 host docker 的 Node 端
+#    a) host 端開 cloudflared tunnel: cloudflared tunnel --url http://localhost:8000
+#    b) 拿到 https://<random>.trycloudflare.com URL
+#    c) 把 URL 設為 secret:pnpm exec wrangler secret put UPSTREAM_URL  (貼上 tunnel URL)
+#    secret 不入 wrangler.jsonc,確保不簽入 git
+
+# 6. deploy
+pnpm exec wrangler deploy
+
+# 7. probe
+DEPLOYED=https://claude-superspec-worker.<your-account>.workers.dev
+curl -sS $DEPLOYED/health
+curl -sS $DEPLOYED/d1/now
+curl -sS "$DEPLOYED/kv/echo?k=foo"
+```
+
+**注意事項**:
+
+- `wrangler.jsonc` `<填於 wrangler ... 後>` placeholder **必須**換成真 ID,否則 deploy
+  fail。
+- `UPSTREAM_URL` production 值經 `wrangler secret put`(NOT `wrangler.jsonc`)— secret
+  留在 git 之外。
+- Free-tier 額度(D1: 5GB / 100k reads/day;KV: 1GB / 100k reads/day)對 demo 綽綽有餘。
+- per SC-005,首次走完應 ≤ 30 min;典型卡點是 Cloudflare account 註冊 + email 驗證
+  (約 5–10 min)+ wrangler OAuth(若 dev container 無瀏覽器 forwarding 需於 host 端登入)。
+
+完整版見
+[`specs/002-cloudflare-worker/quickstart.md` Mode C](specs/002-cloudflare-worker/quickstart.md)。
+
 ---
 
 ## 1. 先決條件
@@ -116,10 +293,12 @@ docker compose -f docker-compose.prod.yml up -d   # 部署(自行擴充的檔案
 
 ## 5. 目錄結構
 
-> 此 repo 是 unified monorepo(Node + 計畫中的 Cloudflare Worker 兩個 runtime 共存)
-> 的 worker 變體。Node 端原本平鋪在 `src/`/`tests/`,2026-04-30 已搬至 `src/node/`/
-> `tests/node/`,為後續 `src/worker/` / `src/shared/` 騰出位置;設計脈絡見
-> [`.docs/20260430a-cloudflare-worker.md`](.docs/20260430a-cloudflare-worker.md)。
+> 此 repo 是 unified monorepo(Node + Cloudflare Worker 兩個 runtime 共存)的 worker
+> 變體。Node 端原本平鋪在 `src/`/`tests/`,2026-04-30 已搬至 `src/node/`/`tests/node/`;
+> Worker 端與 `src/shared/**`(雙端共用之純 type / pure-function utility)由 002 feature
+> 落地,結構為 `src/worker/` + `tests/worker/` + `src/shared/`。設計脈絡見
+> [`.docs/20260430a-cloudflare-worker.md`](.docs/20260430a-cloudflare-worker.md);
+> adopter-facing 介紹見上方 "Dual-Runtime(Node + Cloudflare Worker)" 段。
 
 ```
 .

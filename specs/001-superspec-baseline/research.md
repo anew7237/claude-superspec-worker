@@ -69,7 +69,7 @@
 | FR-003 | 所有日常操作在容器內 | ✅ | `Makefile` 集中 `make up/test/lint/typecheck/format`,Worker 端透過 `wrangler dev` 由 002 落地 |
 | FR-004 | spec-kit pipeline 內建 | ✅ | `.specify/` 完整 + `extensions.yml` hooks 全套 |
 | FR-005 | TDD 紀律(RED→GREEN→REFACTOR) | ✅ | 範例 Node 應用 `tests/node/http-metrics.regression.test.ts` 等已 demonstrate;Worker 端測試由 002 套用同紀律 |
-| FR-006 | Node 端 HTTP 觀測預設(/health、/metrics、自動 per-route);Worker 端 /health | ⚠ Node ✅ / 📅 Worker | `src/node/{app,http-metrics,metrics,logger}.ts` Node 端齊備;Worker 端 `/health` 由 002 落地 |
+| FR-006 | Node 端 HTTP 觀測預設(/health、/metrics、自動 per-route);Worker 端 /health | ✅ Node ✅ / ✅ Worker(since 002) | `src/node/{app,http-metrics,metrics,logger}.ts` Node 端齊備;Worker 端 `/health` 由 002 落地(`src/worker/routes/health.ts` + `tests/worker/health.test.ts` 3 cases) |
 | FR-007 | Claude OAuth credential 隔離 | ✅ | `.devcontainer/devcontainer.json` mount `~/.claude` from host,不烘焙 |
 | FR-008 | 機器強制最低 runtime 版本 | ✅ | `engines.node: ">=22"` + `.npmrc` `engine-strict=true` |
 | FR-009 | lockfile 同 commit | ✅ | `pnpm-lock.yaml` 已 committed;`Dockerfile` `pnpm install --frozen-lockfile` |
@@ -81,18 +81,20 @@
 | FR-015 | dev / production image 層分離 | ✅ | `Dockerfile` multi-stage(`base` / `deps` / `dev` / `build` / `prod-deps` / `runtime`) |
 | FR-016 | feature branch 隔離(`NNN-name`) | ✅ | spec-kit `before_specify=speckit-git-feature` mandatory hook 強制 |
 | FR-017 | CI 與 dev container 同 base image | ⚠ | dev container 已就位;**CI workflow 尚未建立**(此 monorepo `.github/` 不存在,屬 known gap);follow-up:於後續 feature(可能為 003 或 002 結束後的維運 feature)補入 `.github/workflows/ci.yml` |
-| FR-018 | reference application + derivative 契約(含單一 runtime fork) | ⚠ Node ✅ / 📅 Worker | Node 端 reference 齊備;Worker 端 reference 由 002 引入;單一 runtime fork derivative 規範由 spec.md FR-018 已條列(Q1 Clarification) |
+| FR-018 | reference application + derivative 契約(含單一 runtime fork) | ✅ Node ✅ / ✅ Worker(since 002) | Node 端 reference 齊備;Worker 端 reference 由 002 引入(`/health` `/d1/now` `/kv/echo` `/app-api/*` 4 routes,18 cases pass);單一 runtime fork derivative 規範由 spec.md FR-018 已條列(Q1 Clarification) |
 | FR-019 | 工具鏈升級為孤立 commit | ✅ | 憲法 Principle V Governance 段規範;B-narrow `chore(deps): bump vitest 2 -> 4`(commit `ec6781a`)為實證 |
 | FR-020 | 上游 outage degraded mode | ✅ | `post-create.sh` 對 spec-kit / superpowers 的 install 失敗有明確「上游不可達」訊息(L79-81、L98-101);build 完成的容器 + cache 認證可繼續本地工作 |
-| FR-021 | monorepo 結構(`src/{node,worker,shared}` + `tests/{node,worker}`) | ⚠ Node + reservation ✅ / 📅 Worker contents | `src/node/` + `tests/node/` 已落地;`src/worker/` / `src/shared/` / `tests/worker/` 路徑 reserved 但內容由 002 引入 |
-| FR-022 | 跨 runtime import ban(typecheck-level) | 📅 aspirational | 自 v1.0.0 為 aspirational rule;mechanical enforcement(雙 tsconfig + `@cloudflare/workers-types`)由 002 引入(Q3 Clarification);v1.0.0 時違規空間客觀為 0 |
+| FR-021 | monorepo 結構(`src/{node,worker,shared}` + `tests/{node,worker}`) | ✅ Node + Worker(since 002) | `src/node/` + `tests/node/` 已落地;`src/worker/` / `src/shared/` / `tests/worker/` 由 002 落地內容(全 5 個 worker test 檔 + 4 個 worker route 檔 + Env + jsonError + shared placeholder) |
+| FR-022 | 跨 runtime import ban(typecheck-level) | ⚠️ partially mechanical(since 002) | 自 v1.0.0 為 aspirational;002 落地後啟動 mechanical enforcement(雙 tsconfig + `@cloudflare/workers-types`)。對 ambient globals + node:* builtins ✅ 機械擋下;對 explicit named imports(eg. `import { Pool } from 'pg'`)為 advisory(per `specs/002-cloudflare-worker/quickstart.md` T024-T026 evidence)。完全機械化需 ESLint `no-restricted-imports` 補強 — 屬 follow-up feature |
 
-**Gaps 統計**: ✅ 17 / ⚠ 4 / 📅 3 / ❌ 0(其中 ⚠ 與 📅 之間有重疊,因部分 FR 同時對 Node 端 ✅ 對 Worker 端 📅)
+**Gaps 統計(v1.0.0 ratification 時點)**: ✅ 17 / ⚠ 4 / 📅 3 / ❌ 0(其中 ⚠ 與 📅 之間有重疊,因部分 FR 同時對 Node 端 ✅ 對 Worker 端 📅)
+
+**Update 2026-04-30(002-cloudflare-worker 落地後)**:📅 Worker forward-decls 全數兌現(FR-006 / FR-018 / FR-021 → ✅);FR-022 升 ⚠️ partially mechanical(ambient + node:* 機械;explicit named imports 為 advisory)。當前 gaps:✅ 18 / ⚠ 2(FR-017 CI + FR-022 partial)/ 📅 0 / ❌ 0。
 
 **Critical follow-ups**(出 baseline 之外的 gap):
 
 1. **FR-017 CI workflow 不存在**:此 gap 不阻擋 baseline 規格化(spec / plan / contracts 仍可寫),但實際合規驗證需要 CI。建議於 002 結束後或單獨 feature 補建 `.github/workflows/ci.yml`(含雙 OS runner、雙 runtime 測試、secret-scan、lockfile drift)。**不在 001 範圍**(001 只規格化已存在的;CI 屬未來 feature)。
-2. **FR-018 / FR-021 / FR-022 對 Worker 端的 📅 部分**:全數依賴 002 落地。002-cloudflare-worker spec 在其 plan 階段須明列「兌現 001 的 forward-declarations」作為 Constitution Check 的對照。
+2. ~~**FR-018 / FR-021 / FR-022 對 Worker 端的 📅 部分**:全數依賴 002 落地。~~ ✅ **Resolved 2026-04-30**:002-cloudflare-worker 落地後 FR-018 / FR-021 完全兌現,FR-022 升至 partially mechanical;research.md §1.3 Q3 Clarification 之「自 002 落地後正式計算」已啟動。剩餘 gap 為 FR-022 explicit named imports advisory ↔ mechanical 補強(ESLint `no-restricted-imports`),屬 follow-up feature 範圍。
 
 **Plan 不引入 task 來補這些 gap** — 它們屬於後續 feature 範圍。本 baseline 只規格化「現有 + reserved」狀態,並讓 follow-up 在後續 spec-kit 流程中正式排程。
 
@@ -113,7 +115,7 @@
 
 ## Section 4 — 結論
 
-- 22 FR 中有 17 條完全達成,4 條部分達成(Node ✅ / Worker 📅),1 條 aspirational(FR-022)。0 條未達成且無 follow-up。
+- 22 FR 中有 17 條完全達成,4 條部分達成(Node ✅ / Worker 📅),1 條 aspirational(FR-022)。0 條未達成且無 follow-up。**Update 2026-04-30**:002 落地後 18 條完全達成,2 條部分達成(FR-017 CI gap + FR-022 partial mechanical)。0 條未達成。
 - 3 個 Clarification Decisions 已固化,無遺留 [NEEDS CLARIFICATION]。
 - Constitution Check(plan.md)五原則對齊,無 violation。
 

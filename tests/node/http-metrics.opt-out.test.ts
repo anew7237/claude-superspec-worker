@@ -85,11 +85,7 @@ describe('HTTP middleware metrics opt-out (US2)', () => {
     // /health may return 200 (healthy) or 503 (degraded) depending on db/redis.
     expect([200, 503]).toContain(res.status);
 
-    const body = (await res.json()) as {
-      status: string;
-      db: boolean;
-      redis: boolean;
-    };
+    const body = await res.json();
     expect(typeof body.status).toBe('string');
     expect(['ok', 'degraded']).toContain(body.status);
     expect(typeof body.db).toBe('boolean');
