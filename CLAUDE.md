@@ -1,15 +1,19 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at `specs/001-superspec-baseline/plan.md` (Implementation Plan for the
-SuperSpec Worker Monorepo Baseline). Phase 1 design artifacts:
+at `specs/001-superspec-baseline-T009/plan.md` (GET /echo endpoint —
+SC-007 walkthrough sample, branching off 001-superspec-baseline).
+Phase 1 design artifacts:
 
-- `specs/001-superspec-baseline/spec.md` — feature specification
-- `specs/001-superspec-baseline/research.md` — Phase 0 (clarifications + 22 FR gap analysis)
-- `specs/001-superspec-baseline/data-model.md` — Phase 1 (8 governance entities)
-- `specs/001-superspec-baseline/contracts/` — Phase 1 (5 contracts:
-  cli-pipeline, devcontainer, observability, quality-gates, sensitive-material)
-- `specs/001-superspec-baseline/quickstart.md` — Phase 1 (adopter walkthrough)
+- `specs/001-superspec-baseline-T009/spec.md` — feature specification
+- `specs/001-superspec-baseline-T009/research.md` — Phase 0 (no unknowns; cite baseline decisions)
+- `specs/001-superspec-baseline-T009/data-model.md` — Phase 1 (no entity; stateless echo)
+- `specs/001-superspec-baseline-T009/contracts/echo.contract.md` — Phase 1 endpoint contract
+- `specs/001-superspec-baseline-T009/quickstart.md` — Phase 1 (manual verify of 6 acceptance scenarios)
+
+Background / parent baseline:
+
+- `specs/001-superspec-baseline/` — full baseline spec / plan / contracts (merged to main)
 - `.specify/memory/constitution.md` — project constitution v1.0.0
   (Node + Worker dual-runtime principles)
 - `.docs/20260430a-cloudflare-worker.md` — design notes for the upcoming
