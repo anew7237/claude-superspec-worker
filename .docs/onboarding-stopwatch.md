@@ -55,9 +55,16 @@ HEAD `14b0824`(含 T006 measurement)。
 (Docker Desktop magic socket)。`sensitive-material.md` Mac magic socket edge case 已標明此情境,
 但 baseline 未自動偵測 / 提供自動 fallback,屬 derivative UX 缺口。
 
-**處置建議**(超出 001 範圍,記為 follow-up):
+**處置建議**(超出 001 範圍,記為 follow-up,見
+[issue #1](https://github.com/anew7237/claude-superspec-worker/issues/1)):
 
 1. README §1 Mac 段加 callout 提醒先設 `SSH_AUTH_SOCK`;
 2. 後續 feature 可評估 `.devcontainer/devcontainer.json` 是否改條件式 mount source(目前
    devcontainer schema 不直接支援 platform 分支,需研究)或於 `post-create.sh` 移至更早階段預檢;
-3. 直至 follow-up 落地前,SSH agent forwarding 在 Mac M1 上仍可用,只是 onboarding 多一行 `export`。
+3. **重要訂正(post-issue diagnostic)**:上述 workaround **僅解 Layer A — 容器能起來**;
+   實際 SSH forwarding 在 Mac M1 default 狀態下仍 fail,因 VS Code Remote-Containers 自家
+   override `SSH_AUTH_SOCK` 為 `/tmp/vscode-ssh-auth-*.sock`、容器內 `ssh-add -L` 回
+   `communication with agent failed`。我們 mount 的 `/ssh-agent` 形同裝飾,owned by root 對
+   `vscode` user 也不可用。完整修法需 adopter 端 `ssh-add` 配合,或 baseline 接受
+   「Mac SSH-via-container 為 best-effort,主路徑走 HTTPS」(post-create.sh 既有 SSH WARN
+   - HTTPS fallback 即此精神)。詳見 issue #1 Update comment。
