@@ -7,11 +7,11 @@
 
 ## 主要量測表
 
-| 場景                                       | Mac M1 時間 | WSL2 Ubuntu 時間 | 符合 SC-001?                           | 備註                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------------ | ----------- | ---------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 首次 build(devcontainer ready,banner 印出) | 30 s        | 45 s             | ✅(≪ 15 min)                           | Mac M1: T016 / 2026-04-30;**需先 `export SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock`** 才能起 container — 否則 launchd socket bind fail(`sensitive-material.md` Mac magic socket edge case 已標,但 baseline 未自動處理 → follow-up #SSH-mac-socket)。WSL2: T006 / 2026-04-30;`vsc-*` + worker app image 預先砍除,base image / features / `~/.claude` mount 仍 cached;banner 0 WARN / 0 NOT FOUND |
-| Reopen container(已 build 過)              | 20 s        | 25 s             | ✅(≪ 3 min)                            | Mac M1: T016 / 2026-04-30。WSL2: T006 / 2026-04-30。皆只跑 `postStartCommand`                                                                                                                                                                                                                                                                                                                        |
-| `make up` 到全綠 healthcheck(三個 service) | 12 s        | 20 s             | ✅(SC-001 spec 未明列上限,典型 ≤ 30 s) | Mac M1: T016 / 2026-04-30。WSL2: T006 / 2026-04-30;app image 已 build。Mac 比 WSL 快 8 s,在 Apple Silicon native arm64 image 走 + Docker Desktop VM resource pre-allocated 範圍內合理                                                                                                                                                                                                                |
+| 場景                                       | Mac M1 時間 | WSL2 Ubuntu 時間 | 符合 SC-001?                           | 備註                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------ | ----------- | ---------------- | -------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 首次 build(devcontainer ready,banner 印出) | 30 s        | 45 s             | ✅(≪ 15 min)                           | Mac M1: T016 / 2026-04-30;~~需先 `export SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock`~~ workaround **已不需要** — issue #1 fix(本檔同 commit 之鄰近 fix commit,subject `fix(devcontainer): drop explicit SSH_AUTH_SOCK mount`)移除顯式 SSH mount,改由 VS Code Dev Containers 內建 forwarding 處理,Mac M1 + WSL2 雙平台皆 clean 起。WSL2: T006 / 2026-04-30;`vsc-*` + worker app image 預先砍除,base image / features / `~/.claude` mount 仍 cached;banner 0 WARN / 0 NOT FOUND |
+| Reopen container(已 build 過)              | 20 s        | 25 s             | ✅(≪ 3 min)                            | Mac M1: T016 / 2026-04-30。WSL2: T006 / 2026-04-30。皆只跑 `postStartCommand`                                                                                                                                                                                                                                                                                                                                                                                                     |
+| `make up` 到全綠 healthcheck(三個 service) | 12 s        | 20 s             | ✅(SC-001 spec 未明列上限,典型 ≤ 30 s) | Mac M1: T016 / 2026-04-30。WSL2: T006 / 2026-04-30;app image 已 build。Mac 比 WSL 快 8 s,在 Apple Silicon native arm64 image 走 + Docker Desktop VM resource pre-allocated 範圍內合理                                                                                                                                                                                                                                                                                             |
 
 ## 量測方法
 
@@ -47,24 +47,23 @@ HEAD `14b0824`(含 T006 measurement)。
 
 兩平台皆 ≪ SC-001 上限(15 min / 3 min),**SC-001 在 v1.0.0 跨 Mac M1 + WSL2 Ubuntu 雙平台兌現**。
 
-### 本次驗證新發現(follow-up evidence)
+### 本次驗證的發現與閉合過程(issue #1 從 surface 到 fix)
 
-**SSH-mac-socket footgun**:Mac M1 首次 build 在 default `SSH_AUTH_SOCK` 下會 bind-mount fail
-(`/var/run/com.apple.launchd.*/Listeners` 在 Docker Desktop VM 內不存在),容器無法啟動。
-**Workaround**:啟動 VS Code 前於 host shell `export SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock`
-(Docker Desktop magic socket)。`sensitive-material.md` Mac magic socket edge case 已標明此情境,
-但 baseline 未自動偵測 / 提供自動 fallback,屬 derivative UX 缺口。
+**Layer A — bind-mount hard-fail(原始 surface 點)**:Mac M1 首次 build 在 default
+`SSH_AUTH_SOCK` 下會 bind-mount fail(`/var/run/com.apple.launchd.*/Listeners` 在 Docker
+Desktop VM 內不存在),容器無法啟動。
 
-**處置建議**(超出 001 範圍,記為 follow-up,見
-[issue #1](https://github.com/anew7237/claude-superspec-worker/issues/1)):
+**Layer B — 即便 Layer A 用 magic socket 繞過,SSH forwarding 仍 broken**:VS Code
+Remote-Containers 自家 override `SSH_AUTH_SOCK` 為 `/tmp/vscode-ssh-auth-*.sock`、容器內
+`ssh-add -L` 回 `communication with agent failed`。我們顯式 mount 的 `/ssh-agent` 形同裝飾,
+owned by root 對 `vscode` user 也不可用。
 
-1. README §1 Mac 段加 callout 提醒先設 `SSH_AUTH_SOCK`;
-2. 後續 feature 可評估 `.devcontainer/devcontainer.json` 是否改條件式 mount source(目前
-   devcontainer schema 不直接支援 platform 分支,需研究)或於 `post-create.sh` 移至更早階段預檢;
-3. **重要訂正(post-issue diagnostic)**:上述 workaround **僅解 Layer A — 容器能起來**;
-   實際 SSH forwarding 在 Mac M1 default 狀態下仍 fail,因 VS Code Remote-Containers 自家
-   override `SSH_AUTH_SOCK` 為 `/tmp/vscode-ssh-auth-*.sock`、容器內 `ssh-add -L` 回
-   `communication with agent failed`。我們 mount 的 `/ssh-agent` 形同裝飾,owned by root 對
-   `vscode` user 也不可用。完整修法需 adopter 端 `ssh-add` 配合,或 baseline 接受
-   「Mac SSH-via-container 為 best-effort,主路徑走 HTTPS」(post-create.sh 既有 SSH WARN
-   - HTTPS fallback 即此精神)。詳見 issue #1 Update comment。
+**Path B 實驗 → option 5 證實**(同日完成,不另列 follow-up):於
+[branch `experiment/mac-ssh-option5`](https://github.com/anew7237/claude-superspec-worker/tree/experiment/mac-ssh-option5)
+試刪 SSH mount + `containerEnv.SSH_AUTH_SOCK`,改由 VS Code Dev Containers 內建 forwarding
+獨自處理。Mac M1 與 WSL2 雙平台皆驗:容器 clean 起、`ssh-add -L` 印出 host 端 key、
+`ssh -T git@github.com` 成功。Fix 已折回本 baseline(本檔同 commit 之鄰近 fix commit,subject `fix(devcontainer): drop explicit SSH_AUTH_SOCK mount`,issue #1 closed)。
+
+**前提條件**(adopter 須知):host 端 `ssh-add ~/.ssh/<key>` 已載 identity。Mac 上若用
+launchd 託管的 ssh-agent,確認 `ssh-add -L` 印出公鑰即可;若空,git push 自動 fall back
+HTTPS(`post-create.sh` SSH sanity check 印 INFO 提示)。
