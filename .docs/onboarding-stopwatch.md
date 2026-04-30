@@ -28,48 +28,7 @@
 
 ## 第一個 SDD feature 量測(T009 補充)
 
-**完成日期**:2026-04-30
-**Sample feature**:`GET /echo` endpoint(`specs/001-superspec-baseline-T009/`)
-**Branch**:`001-superspec-baseline-T009`(從 `001-superspec-baseline` HEAD `8b699c7` fork,以
-`GIT_BRANCH_NAME` env 覆蓋預設 NNN-name 命名慣例)。
-**平台**:WSL2 Ubuntu host(本 maintainer dev 環境;Mac M1 上未重跑此 walkthrough)。
-
-### 整輪 SDD pipeline elapsed
-
-| 階段                 | 動作                                                                                            | 內容                                                                                                                                  |
-| -------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `/speckit-specify`   | 產 `spec.md` + `checklists/requirements.md`                                                     | 5 user stories → 3 個 / 22 → 6 FRs / 11 → 5 SCs / 12 → 5 edge cases。0 個 [NEEDS CLARIFICATION] marker(以 Assumptions 段封閉所有歧義) |
-| `/speckit-clarify`   | **跳過**                                                                                        | spec 0 ambiguity → 直接進 plan                                                                                                        |
-| `/speckit-plan`      | 產 `plan.md` + `research.md` + `data-model.md` + `contracts/echo.contract.md` + `quickstart.md` | Constitution Check 5/5 ✅ no violations                                                                                               |
-| `/speckit-tasks`     | 產 `tasks.md`                                                                                   | 12 tasks / 6 phases / TDD mandatory                                                                                                   |
-| `/speckit-implement` | T001-T012                                                                                       | RED (T003) → GREEN (T004) → typecheck/lint/prettier 全綠 → manual quickstart 6 step → 收場                                            |
-| **合計**             | **21 min 5 sec(1265 s)**                                                                        | **遠小於 SC-007 ≤ 1 hour budget** ✅                                                                                                  |
-
-### 量測終點驗證
-
-- **`pnpm test`**:8 file / 27 tests pass(原 7 file 20 tests + 新 `tests/node/echo.test.ts` 7 cases — 3 happy / 3 missing / 1 metrics inheritance)
-- **`pnpm typecheck`**:exit 0
-- **`pnpm lint`**:exit 0(no-console rule:`/echo` handler 未引入 `console.*`)
-- **`pnpm exec prettier --check .`**:exit 0
-- **Quickstart manual walkthrough**:6 acceptance scenario 全綠(happy / URL-encoded / 中文 / missing / empty / multi-take-first);`/metrics` 含 `route="/echo"` counter + histogram bucket(自動繼承 baseline httpMetrics middleware,**無需顯式接線** — 兌現 spec FR-004 + 001 baseline observability invariant 1)
-- **`make down`** 收場乾淨
-
-### Implementation 規模
-
-- `src/node/app.ts` +9 lines(`app.get('/echo', handler)` + 註解)
-- `tests/node/echo.test.ts` 新檔 +96 lines(3 describe block / 7 it case + helper for register snapshot)
-- 對 baseline 既有檔案 / 契約 / 依賴 / 配置 **0 變更**
-
-### 兌現 001-superspec-baseline 之 SC-007
-
-> **SC-007**:Adopter 採用後的「第一個自家 feature」可在 1 小時內走完整 SDD pipeline
-> (`/speckit-specify → /speckit-clarify → /speckit-plan → /speckit-tasks → /speckit-implement`)
-> 且通過所有 quality gate;baseline 不預製範例 feature,SC-007 由 adopter 自家流程的可重現性驗證。
-
-本量測為本 maintainer 自跑的 SC-007 in-repo 實證。adopter 端可重現性需各自驗證,baseline 不 promise
-adopter 一定 ≤ 1 hour;但本 walkthrough 證明:**對 trivial 範圍 feature(1 endpoint,1 happy + 1 error
-分支),SC-007 budget 含寬裕緩衝(本次 21m,budget 60m)**,即使 adopter 較不熟悉 spec-kit 流程,
-仍有充足時間慢慢走。
+_TODO(T009):在此新增「從 `/speckit-specify` 到第一個 feature PR 全綠」行,包含 SC-007 數值。_
 
 ## Fresh-eyes 二次驗證(T016 補充)
 
