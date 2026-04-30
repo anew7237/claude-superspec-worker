@@ -21,6 +21,16 @@ if (process.env.HTTP_METRICS_ENABLED?.trim().toLowerCase() !== 'false') {
 
 app.get('/', (c) => c.json({ message: 'hello from hono' }));
 
+app.get('/echo', (c) => {
+  // SC-007 walkthrough sample (specs/001-superspec-baseline-T009/).
+  // Hono `c.req.query('msg')` returns the first value when repeated, and
+  // `undefined` when the key is absent. Empty-string and absent are both
+  // treated as missing, per spec.md Assumption 2.
+  const msg = c.req.query('msg');
+  if (!msg) return c.json({ error: 'missing msg' }, 400);
+  return c.json({ message: msg });
+});
+
 app.get('/health', async (c) => {
   const dbOk = await pool
     .query('SELECT 1')
