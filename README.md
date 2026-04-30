@@ -29,13 +29,13 @@
 本專案最新一版 baseline spec 位於 `specs/001-superspec-baseline/`,
 描述此 template 對 adopter 的契約面與承諾。
 
-- [`specs/001-superspec-baseline/spec.md`](specs/001-superspec-baseline/spec.md) — 5 user stories / 20 FR / 10 SC / 11 edge cases
-- [`specs/001-superspec-baseline/plan.md`](specs/001-superspec-baseline/plan.md) — Technical Context、Constitution Check(對齊憲法 v1.2.2)、Project Structure
-- [`specs/001-superspec-baseline/research.md`](specs/001-superspec-baseline/research.md) — 5 clarification decisions + 19 FR gap analysis
-- [`specs/001-superspec-baseline/data-model.md`](specs/001-superspec-baseline/data-model.md) — 7 regulatory entities(Adopter / DevContainer Definition / Constitution / Feature Spec Artifact / Application Stack / Quality Gate / Toolchain Pin)
+- [`specs/001-superspec-baseline/spec.md`](specs/001-superspec-baseline/spec.md) — 5 user stories / 22 FR / 11 SC / 12 edge cases / 3 clarifications
+- [`specs/001-superspec-baseline/plan.md`](specs/001-superspec-baseline/plan.md) — Technical Context、Constitution Check(對齊憲法 v1.0.0)、Project Structure
+- [`specs/001-superspec-baseline/research.md`](specs/001-superspec-baseline/research.md) — 3 clarification decisions + 22 FR gap analysis
+- [`specs/001-superspec-baseline/data-model.md`](specs/001-superspec-baseline/data-model.md) — 8 governance entities(Adopter / DevContainer Definition / Constitution / Feature Spec Artifact / Application Stack (Node) / Application Stack (Worker, Reserved) / Quality Gate / Toolchain Pin)
 - [`specs/001-superspec-baseline/contracts/`](specs/001-superspec-baseline/contracts/) — 5 contracts(CLI pipeline / devcontainer / observability / quality gates / sensitive material)
 - [`specs/001-superspec-baseline/quickstart.md`](specs/001-superspec-baseline/quickstart.md) — adopter walkthrough(乾淨機 → 跑通第一個 SDD pipeline)
-- [`specs/001-superspec-baseline/tasks.md`](specs/001-superspec-baseline/tasks.md) — 24 implementation tasks(可參考但已被本 baseline 流程消化)
+- [`specs/001-superspec-baseline/tasks.md`](specs/001-superspec-baseline/tasks.md) — 16 tasks across 8 phases(audit + companion-doc 補齊 + polish)
 
 > 後續 feature spec 將沿用此結構,於 `specs/<NNN-feature-name>/` 下產出。
 
@@ -231,7 +231,7 @@ uv tool install specify-cli --force --from "git+https://github.com/github/spec-k
 
 ## 8. 常見問題
 
-> 上游服務 outage 時的 degraded-mode 指南(`.docs/upstream-outage-runbook.md`)為 001-baseline 預期文件,目前 repo 尚未納入。
+> 上游服務 outage(Anthropic API / ghcr.io / GitHub / npm registry / Cloudflare API)時的 degraded-mode 指南:見 [`.docs/upstream-outage-runbook.md`](./.docs/upstream-outage-runbook.md)(對應 FR-020)。
 
 ### Claude Code 在容器裡叫我重新登入
 
