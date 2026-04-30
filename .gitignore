@@ -38,6 +38,7 @@ node_modules/
 dist/
 coverage/
 .vitest-cache/
+.wrangler/
 .pnpm-store/
 *.tsbuildinfo
 npm-debug.log*
