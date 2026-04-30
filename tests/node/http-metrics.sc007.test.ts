@@ -29,42 +29,46 @@ async function measure(fn: () => Promise<void>, iterations: number, warmup: numb
 }
 
 describe('SC-007: httpMetrics overhead gate (hybrid dual threshold)', () => {
-  it(
-    'p99 delta satisfies absolute ≤100μs OR relative ≤20%',
-    async () => {
-      register.clear();
+  it('p99 delta satisfies absolute ≤100μs OR relative ≤20%', async () => {
+    register.clear();
 
-      const appOff = new Hono();
-      appOff.get('/', (c) => c.text('x'));
+    const appOff = new Hono();
+    appOff.get('/', (c) => c.text('x'));
 
-      const appOn = new Hono();
-      appOn.use('/*', httpMetrics({ mountPattern: '/*' }));
-      appOn.get('/', (c) => c.text('x'));
+    const appOn = new Hono();
+    appOn.use('/*', httpMetrics({ mountPattern: '/*' }));
+    appOn.get('/', (c) => c.text('x'));
 
-      const iterations = 1000;
-      const warmup = 100;
+    const iterations = 1000;
+    const warmup = 100;
 
-      const off = await measure(async () => {
+    const off = await measure(
+      async () => {
         await appOff.request('/');
-      }, iterations, warmup);
+      },
+      iterations,
+      warmup,
+    );
 
-      const on = await measure(async () => {
+    const on = await measure(
+      async () => {
         await appOn.request('/');
-      }, iterations, warmup);
+      },
+      iterations,
+      warmup,
+    );
 
-      const absDeltaMs = on.p99Ms - off.p99Ms;
-      const relDelta = on.p99Ms / off.p99Ms - 1;
-      const pass = absDeltaMs <= 0.1 || relDelta <= 0.2;
+    const absDeltaMs = on.p99Ms - off.p99Ms;
+    const relDelta = on.p99Ms / off.p99Ms - 1;
+    const pass = absDeltaMs <= 0.1 || relDelta <= 0.2;
 
-      expect(
-        pass,
-        `SC-007 failed: p99(off)=${(off.p99Ms * 1000).toFixed(1)}μs ` +
-          `p99(on)=${(on.p99Ms * 1000).toFixed(1)}μs ` +
-          `abs Δ=${(absDeltaMs * 1000).toFixed(1)}μs ` +
-          `rel Δ=${(relDelta * 100).toFixed(1)}% ` +
-          `(need abs≤100μs OR rel≤20%)`,
-      ).toBe(true);
-    },
-    30_000,
-  );
+    expect(
+      pass,
+      `SC-007 failed: p99(off)=${(off.p99Ms * 1000).toFixed(1)}μs ` +
+        `p99(on)=${(on.p99Ms * 1000).toFixed(1)}μs ` +
+        `abs Δ=${(absDeltaMs * 1000).toFixed(1)}μs ` +
+        `rel Δ=${(relDelta * 100).toFixed(1)}% ` +
+        `(need abs≤100μs OR rel≤20%)`,
+    ).toBe(true);
+  }, 30_000);
 });

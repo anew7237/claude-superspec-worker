@@ -219,15 +219,13 @@ fi
 # ============================================================
 echo ""
 echo "==> SSH agent forwarding sanity check..."
-if [ -S /ssh-agent ]; then
-    if SSH_AUTH_SOCK=/ssh-agent ssh-add -l >/dev/null 2>&1; then
-        echo "==> SSH agent forwarded; \`git push\` will use SSH keys"
-    else
-        # socket 在但 ssh-add -l 失敗:可能 agent 沒裝 key,或 socket
-        # 是個 dangling fd。仍視為 fallback 給使用者一個提示。
-        echo "WARN: /ssh-agent socket exists but \`ssh-add -l\` failed — \`git push\` will fall back to HTTPS. (在 host 端跑 \`ssh-add\` 把 key 加進 agent 後重開容器即可)"
-    fi
+# postCreateCommand 跑在 container setup 階段,VS Code 的 SSH forwarder 在
+# 此時尚未 attach(它於使用者開第一個 terminal 時才 inject SSH_AUTH_SOCK
+# 與 socket file)。因此此處只能做「弱檢查」+ 提示。
+if [ -n "${SSH_AUTH_SOCK:-}" ] && [ -S "${SSH_AUTH_SOCK}" ] \
+        && ssh-add -l >/dev/null 2>&1; then
+    echo "==> SSH agent forwarded (SSH_AUTH_SOCK=${SSH_AUTH_SOCK}); \`git push\` will use SSH keys"
 else
-    echo "WARN: SSH agent not forwarded — \`git push\` will fall back to HTTPS. (macOS users: VS Code Dev Containers auto-forwarding may differ; see project docs)"
+    echo "INFO: SSH agent not yet visible at postCreateCommand time. VS Code Dev Containers will inject it when you open a terminal — verify with: \`ssh-add -L\` (預期印出 host 端載入的公鑰)。若空,在 host 端跑 \`ssh-add ~/.ssh/<key>\` 後重 attach 容器即可;否則 \`git push\` 會 fall back HTTPS。"
 fi
 

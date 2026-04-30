@@ -19,13 +19,7 @@ export default tseslint.config(
     },
   },
   {
-    ignores: [
-      'dist/',
-      'node_modules/',
-      'coverage/',
-      '.vitest-cache/',
-      'eslint.config.js',
-    ],
+    ignores: ['dist/', 'node_modules/', 'coverage/', '.vitest-cache/', 'eslint.config.js'],
   },
   // Relaxed rules for tests: assertion-style null-assertions and
   // dynamic-import floating promises are idiomatic in Vitest suites.

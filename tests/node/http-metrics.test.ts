@@ -15,8 +15,7 @@ describe('HTTP middleware metrics (US1)', () => {
     expect(metricsRes.status).toBe(200);
     const body = await metricsRes.text();
     // Match an integer counter value >= N for route="/" GET 200
-    const re =
-      /^http_requests_total\{method="GET",route="\/",status_code="200"\}\s+(\d+)/m;
+    const re = /^http_requests_total\{method="GET",route="\/",status_code="200"\}\s+(\d+)/m;
     const match = body.match(re);
     expect(match, `expected counter sample in body, got:\n${body}`).not.toBeNull();
     expect(Number(match![1])).toBeGreaterThanOrEqual(N);
@@ -80,12 +79,8 @@ describe('HTTP middleware metrics (US1)', () => {
 
     const metricsRes = await app.request('/metrics');
     const body = await metricsRes.text();
-    const re =
-      /^http_requests_total\{method="GET",route="not_found",status_code="404"\}\s+\d+/m;
-    expect(
-      body.match(re),
-      `expected not_found sample, got:\n${body}`,
-    ).not.toBeNull();
+    const re = /^http_requests_total\{method="GET",route="not_found",status_code="404"\}\s+\d+/m;
+    expect(body.match(re), `expected not_found sample, got:\n${body}`).not.toBeNull();
   });
 
   it('R5: /metrics scrape is not recorded in http_* series', async () => {
@@ -136,7 +131,10 @@ describe('HTTP middleware metrics (US1)', () => {
     // Allow the fire-and-forget probe Promise to resolve before asserting.
     await new Promise((r) => setImmediate(r));
     await new Promise((r) => setImmediate(r));
-    expect(warnSpy, 'FR-014 warn must NOT fire on a healthy Hono installation').not.toHaveBeenCalled();
+    expect(
+      warnSpy,
+      'FR-014 warn must NOT fire on a healthy Hono installation',
+    ).not.toHaveBeenCalled();
     warnSpy.mockRestore();
   });
 
@@ -159,7 +157,10 @@ describe('HTTP middleware metrics (US1)', () => {
     const m = body.match(
       /^http_requests_total\{method="GET",route="not_found",status_code="404"\}\s+(\d+)/m,
     );
-    expect(m, `expected not_found sample after hitting /api/nonexistent, got:\n${body}`).not.toBeNull();
+    expect(
+      m,
+      `expected not_found sample after hitting /api/nonexistent, got:\n${body}`,
+    ).not.toBeNull();
     expect(
       Number(m![1]),
       'not_found counter should strictly increase after unmatched /api/* request',

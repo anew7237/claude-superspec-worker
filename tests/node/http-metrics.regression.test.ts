@@ -42,6 +42,8 @@ describe('http-metrics regression — SC-004 / FR-006', () => {
     expect(body).toMatch(/http_requests_total\{[^}]*method="GET"[^}]*\}/);
     expect(body).toMatch(/http_requests_total\{[^}]*route="\/__regression__\/:id"[^}]*\}/);
     expect(body).toMatch(/http_requests_total\{[^}]*status_code="200"[^}]*\}/);
-    expect(body).toMatch(/http_request_duration_seconds_bucket\{[^}]*route="\/__regression__\/:id"[^}]*\}/);
+    expect(body).toMatch(
+      /http_request_duration_seconds_bucket\{[^}]*route="\/__regression__\/:id"[^}]*\}/,
+    );
   });
 });

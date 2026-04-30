@@ -38,27 +38,28 @@
   "mounts": [
     "source=${localEnv:HOME}/.claude,target=/home/vscode/.claude,type=bind,consistency=cached",
     "source=${localEnv:HOME}/.claude.json,target=/home/vscode/.claude.json,type=bind",
-    "source=spec-kit-bash-history-${devcontainerId},target=/commandhistory,type=volume",
+    "source=spec-kit-bash-history-${devcontainerId},target=/commandhistory,type=volume"
     // ============================================================
-    // SSH agent forwarding (Gap G3 / FR-014)
+    // SSH agent forwarding (FR-014):
     //
-    // 顯式宣告 SSH agent socket bind mount,讓容器內 `git push` 直接
-    // 用 host 已 unlock 的 SSH key,不必在容器另起 ssh-agent / 拷貝
-    // private key。VS Code Dev Containers 在某些版本會自動處理這件
-    // 事,但行為跨 host OS 不一致(WSL / Linux / Mac 各有差異),
-    // 因此這裡顯式宣告。
+    // 不顯式 bind ${localEnv:SSH_AUTH_SOCK},改由 VS Code Dev Containers
+    // 內建 SSH agent forwarding 統一處理。終端 attach 時 VS Code 會在
+    // 容器內建立 /tmp/vscode-ssh-auth-<uuid>.sock 並設 SSH_AUTH_SOCK env
+    // 指向它;forwarder 透過 IDE 通道把 host ssh-agent 的 identities 透傳
+    // 進來,跨 host OS 一致(WSL2 + Mac M1 已驗,issue #1)。
     //
-    // 跨平台範圍:
-    //   - WSL2 / native Linux:host `${SSH_AUTH_SOCK}` 指向實際的 agent
-    //     socket(通常在 /tmp/ssh-XXX/agent.PID),這裡直接 bind 進來。
-    //   - macOS (Docker Desktop):host `SSH_AUTH_SOCK` 指向的是
-    //     launchd 託管的 socket,Docker Desktop 預設無法分享該路徑。
-    //     此 mount 在 Mac 可能失敗;建議改用 Docker Desktop 提供的
-    //     `/run/host-services/ssh-auth.sock` 魔術路徑(需手動切換),
-    //     或讓 VS Code Dev Containers 自動的 SSH credential sharing 行為接手。
-    //     post-create.sh 內的 sanity check 會 warn 給使用者看。
+    // 為何不再顯式 bind:
+    //   - WSL2 / Linux:${localEnv:SSH_AUTH_SOCK} 為 unix socket 可 bind
+    //     沒問題,但被 VS Code 自家 forwarder 完全 override(SSH_AUTH_SOCK
+    //     env 在 attach 時就被改),此 mount 變成裝飾。
+    //   - macOS:${localEnv:SSH_AUTH_SOCK} 指 launchd path
+    //     (/var/run/com.apple.launchd.*/Listeners),Docker Desktop VM
+    //     看不到 → bind-mount 階段 hard-fail,容器無法啟動(原 issue #1)。
+    //
+    // 條件:host 端 ssh-agent 須有 identity(`ssh-add -L` 印出公鑰)。
+    // 若空,容器內 `ssh-add -L` 也會空,git push 自動 fall back HTTPS
+    // (post-create.sh 的 sanity check 會 warn)。
     // ============================================================
-    "source=${localEnv:SSH_AUTH_SOCK},target=/ssh-agent,type=bind"
   ],
 
   // ============================================================
@@ -78,12 +79,10 @@
     // post-create.sh 已 export 同名變數覆蓋本腳本子 process,但若使用者
     // 後續在容器內手動 `pnpm xxx`,需要這裡的 containerEnv 才能整個容器
     // 環境都吃到。兩處都設是 belt-and-suspenders。
-    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0",
-    // SSH agent forwarding:容器內所有 process 用同一個 socket 路徑
-    // 找 host agent。對應到上面 mounts 區塊宣告的 bind mount target。
-    // 若 host 端 mount 失敗(例如 Mac),這個 env 仍會被設定,但
-    // /ssh-agent 將不存在 — post-create.sh 的 sanity check 會 warn。
-    "SSH_AUTH_SOCK": "/ssh-agent"
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
+    // SSH_AUTH_SOCK 不在此 set:VS Code Dev Containers 在 terminal attach
+    // 時會 override 為 /tmp/vscode-ssh-auth-<uuid>.sock,任何在這裡的
+    // 設定都會被取代。詳見上方 mounts 段落註解。
   },
 
   // ============================================================
@@ -92,11 +91,7 @@
   //   --cap-add:給 init-firewall.sh 用 iptables(若不啟用 firewall
   //              可以拿掉這兩行)
   // ============================================================
-  "runArgs": [
-    "--init",
-    "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW"
-  ],
+  "runArgs": ["--init", "--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
 
   // ============================================================
   // 生命週期

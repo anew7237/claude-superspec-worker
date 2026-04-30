@@ -16,11 +16,11 @@
 ---
 
 ## References
+
 - [Anthropic Claude Code 官方 devcontainer feature](https://github.com/anthropics/devcontainer-features)
 - [Claude Code Legal & Compliance](https://code.claude.com/docs/en/legal-and-compliance)
 - [GitHub Spec-Kit](https://github.com/github/spec-kit) (SDD)
 - [obra/superpowers](https://github.com/obra/superpowers) (TDD)
-
 
 ---
 
@@ -29,13 +29,13 @@
 本專案最新一版 baseline spec 位於 `specs/001-superspec-baseline/`,
 描述此 template 對 adopter 的契約面與承諾。
 
-- [`specs/001-superspec-baseline/spec.md`](specs/001-superspec-baseline/spec.md) — 5 user stories / 20 FR / 10 SC / 11 edge cases
-- [`specs/001-superspec-baseline/plan.md`](specs/001-superspec-baseline/plan.md) — Technical Context、Constitution Check(對齊憲法 v1.2.2)、Project Structure
-- [`specs/001-superspec-baseline/research.md`](specs/001-superspec-baseline/research.md) — 5 clarification decisions + 19 FR gap analysis
-- [`specs/001-superspec-baseline/data-model.md`](specs/001-superspec-baseline/data-model.md) — 7 regulatory entities(Adopter / DevContainer Definition / Constitution / Feature Spec Artifact / Application Stack / Quality Gate / Toolchain Pin)
+- [`specs/001-superspec-baseline/spec.md`](specs/001-superspec-baseline/spec.md) — 5 user stories / 22 FR / 11 SC / 12 edge cases / 3 clarifications
+- [`specs/001-superspec-baseline/plan.md`](specs/001-superspec-baseline/plan.md) — Technical Context、Constitution Check(對齊憲法 v1.0.0)、Project Structure
+- [`specs/001-superspec-baseline/research.md`](specs/001-superspec-baseline/research.md) — 3 clarification decisions + 22 FR gap analysis
+- [`specs/001-superspec-baseline/data-model.md`](specs/001-superspec-baseline/data-model.md) — 8 governance entities(Adopter / DevContainer Definition / Constitution / Feature Spec Artifact / Application Stack (Node) / Application Stack (Worker, Reserved) / Quality Gate / Toolchain Pin)
 - [`specs/001-superspec-baseline/contracts/`](specs/001-superspec-baseline/contracts/) — 5 contracts(CLI pipeline / devcontainer / observability / quality gates / sensitive material)
 - [`specs/001-superspec-baseline/quickstart.md`](specs/001-superspec-baseline/quickstart.md) — adopter walkthrough(乾淨機 → 跑通第一個 SDD pipeline)
-- [`specs/001-superspec-baseline/tasks.md`](specs/001-superspec-baseline/tasks.md) — 24 implementation tasks(可參考但已被本 baseline 流程消化)
+- [`specs/001-superspec-baseline/tasks.md`](specs/001-superspec-baseline/tasks.md) — 16 tasks across 8 phases(audit + companion-doc 補齊 + polish)
 
 > 後續 feature spec 將沿用此結構,於 `specs/<NNN-feature-name>/` 下產出。
 
@@ -44,12 +44,14 @@
 ## 1. 先決條件
 
 ### Mac (Apple Silicon)
+
 - [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
   - Settings → General → 「Use Rosetta for x86_64/amd64 emulation」打開
   - Settings → Resources → 至少給 8GB RAM、4 CPU
 - [VS Code](https://code.visualstudio.com/) + Extension: [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
 ### Windows + WSL2 Ubuntu
+
 - WSL2 with Ubuntu 24.04
 - [Docker Desktop for Windows](https://www.docker.com/products/docker-desktop/)
   - Settings → Resources → WSL Integration → 勾選你的 Ubuntu distro
@@ -58,18 +60,20 @@
 > **重要**:把專案 clone 在 WSL 檔案系統(`~/`),**不要**放在 `/mnt/c/` (跨檔案系統 IO 慢 5-10 倍)
 
 ### Mac & WSL 皆要做
+
 - 登入 Claude Code 一次(Pro / Max / Team / Enterprise 訂閱)
   - 宿主端執行 `claude`,**先完成 OAuth login**
   - 之後 `~/.claude` 整個目錄都會 mount 進 container,**容器內不用再登入** (含 `.credentials.json` 與 `~/.claude.json` )
 
 ### 跨平台已知差異
-| 議題 | Mac M1 | WSL Ubuntu |
-|---|---|---|
-| `~/.claude` | `/Users/xxx/.claude` | `/home/xxx/.claude` |
-| 處理器架構 | arm64 | amd64 |
-| 檔案系統效能 | `node_modules` 用 named volume(`app-node_modules`)避開 osxfs | 同左 named volume 機制 |
-| Docker Desktop | Rosetta 開啟 emulate amd64 | WSL Integration 開啟 |
-| 實際 mount | VS Code Dev Containers 自動處理 | 同左 |
+
+| 議題           | Mac M1                                                       | WSL Ubuntu             |
+| -------------- | ------------------------------------------------------------ | ---------------------- |
+| `~/.claude`    | `/Users/xxx/.claude`                                         | `/home/xxx/.claude`    |
+| 處理器架構     | arm64                                                        | amd64                  |
+| 檔案系統效能   | `node_modules` 用 named volume(`app-node_modules`)避開 osxfs | 同左 named volume 機制 |
+| Docker Desktop | Rosetta 開啟 emulate amd64                                   | WSL Integration 開啟   |
+| 實際 mount     | VS Code Dev Containers 自動處理                              | 同左                   |
 
 > 若某個 base image 只有 amd64 (Mac M1 上會用 Rosetta 跑,慢)
 > 則在 docker-compose.yml 對應的 service 加: `platform: linux/amd64`
@@ -86,7 +90,7 @@
   - VS Code 右下角會跳「Reopen in Container」,點下去
     - 第一次會 build devcontainer,需要幾分鐘
     - 完成後 terminal 會看到環境檢查結果
-  - 在 devcontainer 的 terminal 內 ` claude ` 啟動
+  - 在 devcontainer 的 terminal 內 `claude` 啟動
 
 ---
 
@@ -171,6 +175,7 @@ docker compose -f docker-compose.prod.yml up -d   # 部署(自行擴充的檔案
 > (commit / push gating 規則)。
 
 ### ✅ 進 git 的東西
+
 - `.claude/settings.json`、`.claude/skills/`(共用 skills)
 - `CLAUDE.md` (Claude Code 的 runtime 指引,屬團隊規範)
 - `.specify/` 整個(constitution、specs、plans 都是團隊資產)
@@ -182,12 +187,14 @@ docker compose -f docker-compose.prod.yml up -d   # 部署(自行擴充的檔案
 - `.nvmrc`、`.prettierrc.json`、`.prettierignore`、`eslint.config.js`
 
 ### ❌ 不進 git
+
 - `.claude/.credentials.json`、`.claude.json` — Anthropic credentials
 - `.env` (實際 secrets)
 - `docker-compose.override.yml` (個人本機調整)
 - `*.pem`、`*.key` (任何 密鑰私鑰 **皆不可簽入**)
 
 ### Anthropic ToS 重點
+
 - 每個成員用**自己的** Claude 訂閱帳號登入
 - 不要把任何人的 `~/.claude/.credentials.json` 透過 git / chat / scp 傳給別人
 - 不要在 devcontainer base image 內預先 bake 別人的 token
@@ -199,18 +206,23 @@ docker compose -f docker-compose.prod.yml up -d   # 部署(自行擴充的檔案
 ## 7. 升級
 
 ### devcontainer 整個重 build
+
 VS Code Command Palette → `Dev Containers: Rebuild Container`
 
 ### Claude Code 升級
+
 宿主端跟容器內都會自動更新(npm package),強制更新:
+
 ```bash
 npm install -g @anthropic-ai/claude-code@latest
 ```
 
 ### Spec-Kit 升級
+
 編輯 `.devcontainer/post-create.sh` 中的 `SPEC_KIT_VERSION`,
 然後在 devcontainer 內(升級時加 `--force` 強制重裝)
 (首次安裝由 `post-create.sh` 自動處理,不需 `--force`):
+
 ```bash
 uv tool install specify-cli --force --from "git+https://github.com/github/spec-kit.git@v0.8.1"
 ```
@@ -219,7 +231,7 @@ uv tool install specify-cli --force --from "git+https://github.com/github/spec-k
 
 ## 8. 常見問題
 
-> 上游服務 outage 時的 degraded-mode 指南(`.docs/upstream-outage-runbook.md`)為 001-baseline 預期文件,目前 repo 尚未納入。
+> 上游服務 outage(Anthropic API / ghcr.io / GitHub / npm registry / Cloudflare API)時的 degraded-mode 指南:見 [`.docs/upstream-outage-runbook.md`](./.docs/upstream-outage-runbook.md)(對應 FR-020)。
 
 ### Claude Code 在容器裡叫我重新登入
 
@@ -230,27 +242,33 @@ WSL 內 `$HOME` 是 `/home/xxx`,不是 Windows 的 `C:\Users\xxx`。
 ### docker compose up 在 container 內找不到 docker socket
 
 確認 `docker-outside-of-docker`(DooD) feature 有正常裝起來:
+
 ```bash
 docker version
 ls -la /var/run/docker.sock
 ```
+
 如果 socket 沒出現,檢查宿主端 Docker Desktop 是否在運行。
 
 ### Mac M1 build 某個 image 很慢
 
 很可能在跑 amd64 emulation。檢查:
+
 ```bash
 docker inspect <image> | grep Architecture
 ```
+
 如果是 `amd64` 而你不需要,改用 arm64 tag 或多 platform image。
 
 ### Apple Silicon 上 pnpm install 卡住
 
 通常是 native module(node-gyp、sharp、bcrypt 等)在 emulation 下
 build。檢查 base image 是否拉了 arm64:
+
 ```bash
 docker inspect node:22-slim --format '{{.Architecture}}'
 ```
+
 應顯示 `arm64`(Mac M1)或 `amd64`(WSL)。若 image 被強制成錯誤架構,
 檢查 Docker Desktop Rosetta 設定,或把問題套件改成 pure-JS 替代品
 (如 `bcryptjs` 取代 `bcrypt`)。
@@ -283,9 +301,9 @@ Grafana 畫 per-route QPS 與 latency 分佈。
 
 ### 指標清單
 
-| 名稱 | 類型 | Labels |
-|---|---|---|
-| `http_requests_total` | counter | `{method, route, status_code}` |
+| 名稱                            | 類型      | Labels                                                   |
+| ------------------------------- | --------- | -------------------------------------------------------- |
+| `http_requests_total`           | counter   | `{method, route, status_code}`                           |
 | `http_request_duration_seconds` | histogram | `{method, route, status_code}`(prom-client 預設 buckets) |
 
 ### `route` label 規則

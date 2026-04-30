@@ -66,21 +66,21 @@ Create a sibling project `claude-superspec-worker/` that:
 
 ### 1.3 Routes — Worker
 
-| Method | Path                | Behavior                                                                 |
-| ------ | ------------------- | ------------------------------------------------------------------------ |
-| GET    | `/health`           | `{ status: "ok", service: "worker", ts }` — touches no binding           |
-| GET    | `/d1/now`           | `env.DB.prepare("SELECT CURRENT_TIMESTAMP AS now").first()` → `{ source: "d1", now }` |
-| GET    | `/kv/echo?k=<key>`  | `env.KV.get(k)` → `{ source: "kv", key, value }`; missing → 404 `{ error: "not_found" }` |
-| ALL    | `/app-api/*`        | reverse proxy to upstream + path/query — **see §4 for corrected semantics** |
+| Method | Path               | Behavior                                                                                 |
+| ------ | ------------------ | ---------------------------------------------------------------------------------------- |
+| GET    | `/health`          | `{ status: "ok", service: "worker", ts }` — touches no binding                           |
+| GET    | `/d1/now`          | `env.DB.prepare("SELECT CURRENT_TIMESTAMP AS now").first()` → `{ source: "d1", now }`    |
+| GET    | `/kv/echo?k=<key>` | `env.KV.get(k)` → `{ source: "kv", key, value }`; missing → 404 `{ error: "not_found" }` |
+| ALL    | `/app-api/*`       | reverse proxy to upstream + path/query — **see §4 for corrected semantics**              |
 
 **Proxy error model**
 
-| Condition                       | Response                                              |
-| ------------------------------- | ----------------------------------------------------- |
-| `UPSTREAM_URL` unset            | 503 `{ error: "upstream_not_configured" }`            |
-| upstream returns non-2xx        | pass-through status + body                            |
-| upstream timeout (>10s)         | 504 `{ error: "upstream_timeout" }`                   |
-| network error                   | 502 `{ error: "upstream_unreachable" }`               |
+| Condition                | Response                                   |
+| ------------------------ | ------------------------------------------ |
+| `UPSTREAM_URL` unset     | 503 `{ error: "upstream_not_configured" }` |
+| upstream returns non-2xx | pass-through status + body                 |
+| upstream timeout (>10s)  | 504 `{ error: "upstream_timeout" }`        |
+| network error            | 502 `{ error: "upstream_unreachable" }`    |
 
 Implemented with `fetch(target, { method, headers, body, signal: AbortSignal.timeout(10_000) })`.
 
@@ -88,19 +88,19 @@ Implemented with `fetch(target, { method, headers, body, signal: AbortSignal.tim
 
 Only these are added; existing routes unchanged.
 
-| Method | Path                  | Behavior                                                                |
-| ------ | --------------------- | ----------------------------------------------------------------------- |
-| GET    | `/app-api/health`     | `{ status: "ok", service: "nodejs" }`                                   |
-| GET    | `/app-api/now`        | `SELECT NOW() AS now` via `pg` → `{ source: "postgres", now }`          |
-| GET    | `/app-api/echo?k=<k>` | `redis.get(k)` → `{ source: "redis", key, value }`; missing → 404       |
+| Method | Path                  | Behavior                                                          |
+| ------ | --------------------- | ----------------------------------------------------------------- |
+| GET    | `/app-api/health`     | `{ status: "ok", service: "nodejs" }`                             |
+| GET    | `/app-api/now`        | `SELECT NOW() AS now` via `pg` → `{ source: "postgres", now }`    |
+| GET    | `/app-api/echo?k=<k>` | `redis.get(k)` → `{ source: "redis", key, value }`; missing → 404 |
 
 **Comparison table (for README)**
 
-| Demo   | Cloudflare-native        | Through nodejs (proxy)         |
-| ------ | ------------------------ | ------------------------------ |
-| health | `GET /health`            | `GET /app-api/health`          |
-| now    | `GET /d1/now`            | `GET /app-api/now`             |
-| echo   | `GET /kv/echo?k=foo`     | `GET /app-api/echo?k=foo`      |
+| Demo   | Cloudflare-native    | Through nodejs (proxy)    |
+| ------ | -------------------- | ------------------------- |
+| health | `GET /health`        | `GET /app-api/health`     |
+| now    | `GET /d1/now`        | `GET /app-api/now`        |
+| echo   | `GET /kv/echo?k=foo` | `GET /app-api/echo?k=foo` |
 
 ### 1.5 Bindings & Configuration
 
@@ -112,21 +112,21 @@ Only these are added; existing routes unchanged.
   "main": "src/index.ts",
   "compatibility_date": "2025-09-01",
   "vars": {
-    "UPSTREAM_URL": "http://localhost:8000"
+    "UPSTREAM_URL": "http://localhost:8000",
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "claude-superspec-worker",
-      "database_id": "<filled-after-wrangler-d1-create>"
-    }
+      "database_id": "<filled-after-wrangler-d1-create>",
+    },
   ],
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "<filled-after-wrangler-kv-namespace-create>"
-    }
-  ]
+      "id": "<filled-after-wrangler-kv-namespace-create>",
+    },
+  ],
 }
 ```
 
@@ -163,16 +163,16 @@ export interface Env {
 
 ### 1.8 Tooling & Commands
 
-| Action          | Command                                           |
-| --------------- | ------------------------------------------------- |
-| Local dev       | `pnpm dev` → `wrangler dev`                       |
-| Tests           | `pnpm test`                                       |
-| Type check      | `pnpm typecheck` → `tsc --noEmit`                 |
-| Lint            | `pnpm lint` → `eslint .`                          |
-| Format          | `pnpm format` → `prettier --write .`              |
-| Deploy          | `pnpm deploy` → `wrangler deploy`                 |
-| D1 migrations   | `pnpm db:migrate` → `wrangler d1 migrations apply` |
-| Tail logs       | `pnpm logs` → `wrangler tail`                     |
+| Action        | Command                                            |
+| ------------- | -------------------------------------------------- |
+| Local dev     | `pnpm dev` → `wrangler dev`                        |
+| Tests         | `pnpm test`                                        |
+| Type check    | `pnpm typecheck` → `tsc --noEmit`                  |
+| Lint          | `pnpm lint` → `eslint .`                           |
+| Format        | `pnpm format` → `prettier --write .`               |
+| Deploy        | `pnpm deploy` → `wrangler deploy`                  |
+| D1 migrations | `pnpm db:migrate` → `wrangler d1 migrations apply` |
+| Tail logs     | `pnpm logs` → `wrangler tail`                      |
 
 ### 1.9 First-Time Deploy Sequence (README)
 
@@ -191,9 +191,11 @@ For local-only flow, steps 5–7 can be skipped (use `wrangler dev` against `var
 ### 1.10 Dependencies (worker side, original "slim" plan)
 
 **`package.json` — runtime**
+
 - `hono ^4.x`
 
 **`package.json` — dev**
+
 - `wrangler ^3.x`
 - `@cloudflare/workers-types`
 - `@cloudflare/vitest-pool-workers`
@@ -203,6 +205,7 @@ For local-only flow, steps 5–7 can be skipped (use `wrangler dev` against `var
 - `prettier`
 
 **Removed vs nodejs version (in original plan; reversed in §5)**
+
 - `pg` (replaced by D1 binding)
 - `redis` (replaced by KV binding)
 - `pino`, `pino-pretty` (use `console.log`; Workers Logs / `wrangler tail` for tailing)
@@ -270,28 +273,29 @@ The starter is done when, on a fresh checkout:
 
 ### 2.1 Tasks
 
-| #   | Title                                                          | Files (worker repo unless prefixed)                                              |
-| --- | -------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| T1  | Repo skeleton + base hygiene configs                           | `.gitignore`, `.gitattributes`, `.nvmrc`, `CLAUDE.md`, `package.json` (stub)     |
-| T2  | Mirror `.specify/` from nodejs sibling + variant amendment     | full `.specify/` tree; `.specify/memory/constitution.md` amendment               |
-| T3  | Install Cloudflare deps                                        | `package.json` (deps), `pnpm-lock.yaml`                                          |
-| T4  | TypeScript / ESLint / Prettier configs                         | `tsconfig.json`, `eslint.config.js`, `.prettierrc.json`, `.prettierignore`       |
-| T5  | `wrangler.jsonc` + `.dev.vars`                                 | `wrangler.jsonc`, `.dev.vars` (gitignored)                                       |
-| T6  | vitest config with workers pool                                | `vitest.config.ts`                                                               |
-| T7  | Bindings type                                                  | `src/env.ts`                                                                     |
-| T8  | `src/error.ts` (TDD `jsonError`)                               | `src/error.ts`, `tests/error.test.ts`                                            |
-| T9  | Hono app skeleton + GET `/health` (TDD)                        | `src/index.ts`, `src/routes/health.ts`, `tests/health.test.ts`                   |
-| T10 | GET `/d1/now` (TDD)                                            | `src/routes/d1.ts`, `tests/d1.test.ts`, +modify `src/index.ts`                   |
-| T11 | GET `/kv/echo` (TDD, 3 cases: hit / miss / missing-param)      | `src/routes/kv.ts`, `tests/kv.test.ts`, +modify `src/index.ts`                   |
-| T12 | ALL `/app-api/*` reverse proxy (TDD, 6 cases)                  | `src/routes/proxy.ts`, `tests/proxy.test.ts`, +modify `src/index.ts`             |
-| T13 | `package.json` scripts (dev / test / typecheck / lint / etc)   | `package.json` (scripts block)                                                   |
-| T14 | `README.md` (comparison table + first-time deploy walkthrough) | `README.md`                                                                      |
+| #   | Title                                                          | Files (worker repo unless prefixed)                                                                                       |
+| --- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| T1  | Repo skeleton + base hygiene configs                           | `.gitignore`, `.gitattributes`, `.nvmrc`, `CLAUDE.md`, `package.json` (stub)                                              |
+| T2  | Mirror `.specify/` from nodejs sibling + variant amendment     | full `.specify/` tree; `.specify/memory/constitution.md` amendment                                                        |
+| T3  | Install Cloudflare deps                                        | `package.json` (deps), `pnpm-lock.yaml`                                                                                   |
+| T4  | TypeScript / ESLint / Prettier configs                         | `tsconfig.json`, `eslint.config.js`, `.prettierrc.json`, `.prettierignore`                                                |
+| T5  | `wrangler.jsonc` + `.dev.vars`                                 | `wrangler.jsonc`, `.dev.vars` (gitignored)                                                                                |
+| T6  | vitest config with workers pool                                | `vitest.config.ts`                                                                                                        |
+| T7  | Bindings type                                                  | `src/env.ts`                                                                                                              |
+| T8  | `src/error.ts` (TDD `jsonError`)                               | `src/error.ts`, `tests/error.test.ts`                                                                                     |
+| T9  | Hono app skeleton + GET `/health` (TDD)                        | `src/index.ts`, `src/routes/health.ts`, `tests/health.test.ts`                                                            |
+| T10 | GET `/d1/now` (TDD)                                            | `src/routes/d1.ts`, `tests/d1.test.ts`, +modify `src/index.ts`                                                            |
+| T11 | GET `/kv/echo` (TDD, 3 cases: hit / miss / missing-param)      | `src/routes/kv.ts`, `tests/kv.test.ts`, +modify `src/index.ts`                                                            |
+| T12 | ALL `/app-api/*` reverse proxy (TDD, 6 cases)                  | `src/routes/proxy.ts`, `tests/proxy.test.ts`, +modify `src/index.ts`                                                      |
+| T13 | `package.json` scripts (dev / test / typecheck / lint / etc)   | `package.json` (scripts block)                                                                                            |
+| T14 | `README.md` (comparison table + first-time deploy walkthrough) | `README.md`                                                                                                               |
 | T15 | nodejs sibling: add `/app-api/*` endpoints                     | `claude-superspec-nodejs/src/app.ts`, `claude-superspec-nodejs/tests/app-api.test.ts` (on branch `002-app-api-endpoints`) |
-| T16 | Manual end-to-end smoke test                                   | (verification only, no code)                                                     |
+| T16 | Manual end-to-end smoke test                                   | (verification only, no code)                                                                                              |
 
 ### 2.2 Key Code Spec — Worker (T7-T12)
 
 **`src/env.ts`**
+
 ```ts
 export interface Env {
   DB: D1Database;
@@ -301,6 +305,7 @@ export interface Env {
 ```
 
 **`src/error.ts`**
+
 ```ts
 export function jsonError(status: number, code: string, hint?: string): Response {
   const body: { error: string; hint?: string } = { error: code };
@@ -313,6 +318,7 @@ export function jsonError(status: number, code: string, hint?: string): Response
 ```
 
 **`src/routes/health.ts`**
+
 ```ts
 import { Hono } from 'hono';
 import type { Env } from '../env';
@@ -325,6 +331,7 @@ healthRoute.get('/health', (c) =>
 ```
 
 **`src/routes/d1.ts`**
+
 ```ts
 import { Hono } from 'hono';
 import type { Env } from '../env';
@@ -345,6 +352,7 @@ d1Route.get('/d1/now', async (c) => {
 ```
 
 **`src/routes/kv.ts`**
+
 ```ts
 import { Hono } from 'hono';
 import type { Env } from '../env';
@@ -368,6 +376,7 @@ kvRoute.get('/kv/echo', async (c) => {
 ```
 
 **`src/routes/proxy.ts`** — corrected per §4 below (passthrough, not strip):
+
 ```ts
 import { Hono } from 'hono';
 import type { Env } from '../env';
@@ -417,6 +426,7 @@ proxyRoute.all(`${PROXY_PREFIX}/*`, async (c) => {
 ```
 
 **`src/index.ts`**
+
 ```ts
 import { Hono } from 'hono';
 import type { Env } from './env';
@@ -450,10 +460,13 @@ export default {
 These tripped up the original plan and should inform any re-execution:
 
 1. **`@cloudflare/vitest-pool-workers@0.15.1` does NOT export `defineWorkersConfig` from `/config`.** The plan called for:
+
    ```ts
    import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config';
    ```
+
    That subpath doesn't exist (package's `exports` only has `.`, `./types`, `./codemods/vitest-v3-to-v4`). Use the v0.15-era plugin pattern instead:
+
    ```ts
    import { cloudflareTest } from '@cloudflare/vitest-pool-workers';
    import { defineConfig } from 'vitest/config';
@@ -476,24 +489,30 @@ These tripped up the original plan and should inform any re-execution:
 2. **`tsconfig.json` `types` array must include `@cloudflare/vitest-pool-workers/types`** for `tsc` to resolve `import { env, createExecutionContext } from 'cloudflare:test'` in test files. Original plan had only `["@cloudflare/workers-types/2023-07-01"]`.
 
 3. **`declare module 'cloudflare:test' { interface ProvidedEnv { ... } }` augmentation does NOT work in v0.15.1.** The `env` import is typed as `Cloudflare.Env` (an empty mergeable interface in `cloudflare-test.d.ts`). The augmentation has no effect. Workaround used in tests:
+
    ```ts
    import type { Env } from '../src/env';
    const baseEnv: Env = { ...(env as unknown as Env), UPSTREAM_URL: 'http://upstream.test' };
    ```
+
    The `declare module` block can stay (documentation parity) but doesn't actually narrow the type. Worth a follow-up: extract a typed-env helper to avoid repeating the cast across tests.
 
 4. **`exactOptionalPropertyTypes: true` rejects inline ternaries assigning `undefined` to optional fields.** E.g.:
+
    ```ts
    // FAILS under exactOptionalPropertyTypes
    const init = { method, headers, body: isBodyless ? undefined : raw.body };
    ```
+
    Build the object incrementally instead:
+
    ```ts
    const init: RequestInit = { method, headers };
    if (!isBodyless) init.body = raw.body;
    ```
 
 5. **ESLint 9 `@typescript-eslint/no-unused-vars` rule does NOT auto-ignore underscore-prefixed parameters without explicit config.** When renaming `c` → `_c` in `app.onError((err, _c) => ...)` to satisfy `noUnusedParameters: true` in tsconfig, ESLint still complained. Add to `eslint.config.js`:
+
    ```js
    {
      rules: {
@@ -642,10 +661,12 @@ describe('/app-api/* endpoints', () => {
 ### 4.2 Root cause
 
 The original `proxy.ts` STRIPPED the `/app-api` prefix before forwarding:
+
 ```ts
 const targetPath = incoming.pathname.slice(PROXY_PREFIX.length) || '/';
 const target = `${upstream}${targetPath}${incoming.search}`;
 ```
+
 So worker `GET /app-api/now` became `GET http://localhost:8000/now` upstream. nodejs has no `/now` route → 404. And worker `GET /app-api/health` hit nodejs's existing `/health` (the rich db+redis liveness one) — accidentally returning 200 with the wrong body.
 
 The §1.3 spec was internally inconsistent: the worker stripped the prefix but §1.4 declared the nodejs sibling exposes routes literally at `/app-api/*`. Once nodejs has those routes, the strip is wrong.
@@ -653,12 +674,14 @@ The §1.3 spec was internally inconsistent: the worker stripped the prefix but �
 ### 4.3 Fix
 
 Don't strip — pass through:
+
 ```ts
 const incoming = new URL(c.req.url);
 const target = `${upstream.replace(/\/$/, '')}${incoming.pathname}${incoming.search}`;
 ```
 
 Two test assertions in `tests/proxy.test.ts` also flipped:
+
 ```ts
 // before
 expect(url).toBe('http://upstream.test/health');
@@ -789,49 +812,50 @@ claude-superspec-worker/                     ← single .git, single package.jso
   "engines": { "node": ">=22" },
   "packageManager": "pnpm@9.12.0",
   "scripts": {
-    "dev:node":      "node --watch --experimental-strip-types --disable-warning=ExperimentalWarning src/node/index.ts",
-    "dev:worker":    "wrangler dev",
-    "build:node":    "tsc -p tsconfig.node.json",
+    "dev:node": "node --watch --experimental-strip-types --disable-warning=ExperimentalWarning src/node/index.ts",
+    "dev:worker": "wrangler dev",
+    "build:node": "tsc -p tsconfig.node.json",
     "deploy:worker": "wrangler deploy",
-    "test":          "pnpm test:node && pnpm test:worker",
-    "test:node":     "vitest run --config vitest.config.node.ts",
-    "test:worker":   "vitest run --config vitest.config.worker.ts",
-    "typecheck":     "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.worker.json",
-    "lint":          "eslint .",
-    "format":        "prettier --write .",
-    "format:check":  "prettier --check .",
-    "logs:worker":   "wrangler tail",
-    "db:migrate":    "wrangler d1 migrations apply claude-superspec-worker --remote",
-    "compose:up":    "docker compose up -d",
-    "compose:down":  "docker compose down"
+    "test": "pnpm test:node && pnpm test:worker",
+    "test:node": "vitest run --config vitest.config.node.ts",
+    "test:worker": "vitest run --config vitest.config.worker.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.worker.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "logs:worker": "wrangler tail",
+    "db:migrate": "wrangler d1 migrations apply claude-superspec-worker --remote",
+    "compose:up": "docker compose up -d",
+    "compose:down": "docker compose down"
   },
   "dependencies": {
     "@hono/node-server": "^1.13",
-    "hono":              "^4",
-    "pg":                "^8.13",
-    "pino":              "^9.5",
-    "prom-client":       "^15.1",
-    "redis":             "^4.7"
+    "hono": "^4",
+    "pg": "^8.13",
+    "pino": "^9.5",
+    "prom-client": "^15.1",
+    "redis": "^4.7"
   },
   "devDependencies": {
     "@cloudflare/vitest-pool-workers": "^0.15",
-    "@cloudflare/workers-types":       "^4",
-    "@eslint/js":                      "^10",
-    "@types/node":                     "^22",
-    "@types/pg":                       "^8.11",
-    "eslint":                          "^9",
-    "eslint-config-prettier":          "^10",
-    "pino-pretty":                     "^11",
-    "prettier":                        "^3",
-    "typescript":                      "^5.7",
-    "typescript-eslint":               "^8",
-    "vitest":                          "^4",
-    "wrangler":                        "^3"
+    "@cloudflare/workers-types": "^4",
+    "@eslint/js": "^10",
+    "@types/node": "^22",
+    "@types/pg": "^8.11",
+    "eslint": "^9",
+    "eslint-config-prettier": "^10",
+    "pino-pretty": "^11",
+    "prettier": "^3",
+    "typescript": "^5.7",
+    "typescript-eslint": "^8",
+    "vitest": "^4",
+    "wrangler": "^3"
   }
 }
 ```
 
 **Key insights:**
+
 - All deps in same root `package.json`. wrangler bundles only what `src/worker/index.ts` imports → pg/redis/pino/prom-client don't bloat the deployed Worker.
 - Single `pnpm install` covers both runtimes.
 - `dev:node` and `dev:worker` listen on different ports (8000 / 8787) so they can run side-by-side. Worker proxy `UPSTREAM_URL=http://localhost:8000` reaches node directly without docker.
@@ -839,6 +863,7 @@ claude-superspec-worker/                     ← single .git, single package.jso
 ### 5.4 Two vitest configs (or one with projects)
 
 `vitest.config.node.ts`:
+
 ```ts
 import { defineConfig } from 'vitest/config';
 export default defineConfig({
@@ -847,19 +872,22 @@ export default defineConfig({
 ```
 
 `vitest.config.worker.ts`:
+
 ```ts
 import { cloudflareTest } from '@cloudflare/vitest-pool-workers';
 import { defineConfig } from 'vitest/config';
 export default defineConfig({
-  plugins: [cloudflareTest({
-    wrangler: { configPath: './wrangler.jsonc' },
-    miniflare: {
-      compatibilityDate: '2025-09-01',
-      d1Databases: ['DB'],
-      kvNamespaces: ['KV'],
-      bindings: { UPSTREAM_URL: 'http://localhost:8000' },
-    },
-  })],
+  plugins: [
+    cloudflareTest({
+      wrangler: { configPath: './wrangler.jsonc' },
+      miniflare: {
+        compatibilityDate: '2025-09-01',
+        d1Databases: ['DB'],
+        kvNamespaces: ['KV'],
+        bindings: { UPSTREAM_URL: 'http://localhost:8000' },
+      },
+    }),
+  ],
   test: { include: ['tests/worker/**/*.test.ts'] },
 });
 ```
@@ -879,12 +907,14 @@ This way Worker tsc never sees Node globals (and vice versa) — neither runtime
 **Decision reversed 2026-04-30 during execution**: Docker assets (`Dockerfile`, `docker-compose.yml`, `scripts/db-init/`) stay at repo root rather than being moved into `docker/`.
 
 Rationale:
+
 - `.devcontainer/devcontainer.json` references `Dockerfile` at root (`"build": { "dockerfile": "Dockerfile" }`); not moving avoids touching DevContainer config.
 - `Makefile` uses bare `docker compose ...` from repo root; keeping compose at root means Makefile is untouched.
 - compose's `context: .` and `${LOCAL_WORKSPACE_FOLDER:-.}/scripts/db-init` bind mount stay valid as-is — no path-prefix edits needed.
 - DevContainer + compose + `pnpm dev` flows all keep working without any compose-side changes.
 
 The only Node-side path edits that did land in the migration commit (`25cfebf`):
+
 - `Dockerfile` runtime CMD: `dist/index.js` → `dist/node/index.js` (because `tsc -p tsconfig.json` with `rootDir: src` emits to `dist/node/index.js` once entry moves).
 - `package.json` `dev` script: `src/index.ts` → `src/node/index.ts`.
 - `package.json` `start` script: `dist/index.js` → `dist/node/index.js`.
@@ -899,6 +929,7 @@ The original wording (§1.12) said the variant was Cloudflare-only and Docker-ou
 > **Variant Amendment — Cloudflare Worker Companion (2026-04-30)**
 >
 > This repo houses **two runtimes coexisting**:
+>
 > - **Node runtime** (`src/node/`): Hono on `@hono/node-server`, Postgres via `pg`, Redis, pino, prom-client. Deployed via Docker (`Dockerfile` + `docker-compose.yml` at repo root).
 > - **Worker runtime** (`src/worker/`): Hono on Workers fetch handler, D1 + KV bindings, console.log, no Prometheus. Deployed via `wrangler deploy`.
 >
@@ -924,25 +955,25 @@ i.e. it's one feature spec describing "introduce the Cloudflare Worker variant a
 
 These were settled in chat between 2026-04-29 and 2026-04-30:
 
-| #   | Topic                                  | Decision                                                                          |
-| --- | -------------------------------------- | --------------------------------------------------------------------------------- |
-| 1   | Goal of variant                        | Starter (clean, minimal-deps, readable, fork-friendly)                            |
-| 2   | Worker data layer                      | Hybrid: D1+KV direct + reverse proxy `/app-api/*` to nodejs (Postgres+Redis)      |
-| 3   | Worker → nodejs bridging               | `UPSTREAM_URL` env var (vars in dev, secret in prod) + cloudflared tunnel for prod |
-| 4   | Demo surface                           | Read-only: /health on each side, /d1/now vs /app-api/now, /kv/echo vs /app-api/echo |
-| 5   | Approach selection                     | "Idiomatic Workers + spec-kit mirrored" (Approach 3 in original brainstorm)        |
-| 6   | Repo layout                            | **Unified monorepo (Option 1)** — single repo, `src/{node,worker,shared}` parallel |
-| 7   | identity for new repo                  | `Andrew Hsieh <anew7237@gmail.com>` (worker's existing `.git/config`)             |
-| 8   | 001 source                             | `origin/001-superspec-baseline` of nodejs repo (NOT `main` — 001 has full spec-kit deliverable + http-metrics fix that main is missing) |
-| 9   | History preservation                   | None — fresh `git init`, clean commit chain                                       |
-| 10  | Existing standalone worker repo        | Tear down (16 commits discarded after this doc captures the lessons)              |
-| 11  | nodejs `002-app-api-endpoints` branch  | Delete after monorepo lands (`git -C claude-superspec-nodejs branch -D 002-app-api-endpoints`) |
-| 12  | nodejs `main`                          | Untouched; remains the source of truth for the "node-only" world if anyone wants it |
-| 13  | Push policy                            | No push without user command. CLAUDE.md rule preserved in monorepo                |
-| 14  | Auto-commit during subagent execution  | Approved when explicitly running subagent-driven-development workflow              |
-| 15  | Proxy semantics                        | **Passthrough** (forward `/app-api/*` verbatim to upstream; do NOT strip prefix). Per §4 fix |
-| 16  | Sibling claude-superspec-nodejs/       | Stays as historical reference repo; not touched by monorepo work                  |
-| 17  | Docker asset location                  | **Kept at repo root** (`Dockerfile`, `docker-compose.yml`, `scripts/db-init/`). Reversed 2026-04-30 during T-migration execution to avoid DevContainer/Makefile rework. See §5.6 |
+| #   | Topic                                 | Decision                                                                                                                                                                         |
+| --- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Goal of variant                       | Starter (clean, minimal-deps, readable, fork-friendly)                                                                                                                           |
+| 2   | Worker data layer                     | Hybrid: D1+KV direct + reverse proxy `/app-api/*` to nodejs (Postgres+Redis)                                                                                                     |
+| 3   | Worker → nodejs bridging              | `UPSTREAM_URL` env var (vars in dev, secret in prod) + cloudflared tunnel for prod                                                                                               |
+| 4   | Demo surface                          | Read-only: /health on each side, /d1/now vs /app-api/now, /kv/echo vs /app-api/echo                                                                                              |
+| 5   | Approach selection                    | "Idiomatic Workers + spec-kit mirrored" (Approach 3 in original brainstorm)                                                                                                      |
+| 6   | Repo layout                           | **Unified monorepo (Option 1)** — single repo, `src/{node,worker,shared}` parallel                                                                                               |
+| 7   | identity for new repo                 | `Andrew Hsieh <anew7237@gmail.com>` (worker's existing `.git/config`)                                                                                                            |
+| 8   | 001 source                            | `origin/001-superspec-baseline` of nodejs repo (NOT `main` — 001 has full spec-kit deliverable + http-metrics fix that main is missing)                                          |
+| 9   | History preservation                  | None — fresh `git init`, clean commit chain                                                                                                                                      |
+| 10  | Existing standalone worker repo       | Tear down (16 commits discarded after this doc captures the lessons)                                                                                                             |
+| 11  | nodejs `002-app-api-endpoints` branch | Delete after monorepo lands (`git -C claude-superspec-nodejs branch -D 002-app-api-endpoints`)                                                                                   |
+| 12  | nodejs `main`                         | Untouched; remains the source of truth for the "node-only" world if anyone wants it                                                                                              |
+| 13  | Push policy                           | No push without user command. CLAUDE.md rule preserved in monorepo                                                                                                               |
+| 14  | Auto-commit during subagent execution | Approved when explicitly running subagent-driven-development workflow                                                                                                            |
+| 15  | Proxy semantics                       | **Passthrough** (forward `/app-api/*` verbatim to upstream; do NOT strip prefix). Per §4 fix                                                                                     |
+| 16  | Sibling claude-superspec-nodejs/      | Stays as historical reference repo; not touched by monorepo work                                                                                                                 |
+| 17  | Docker asset location                 | **Kept at repo root** (`Dockerfile`, `docker-compose.yml`, `scripts/db-init/`). Reversed 2026-04-30 during T-migration execution to avoid DevContainer/Makefile rework. See §5.6 |
 
 ---
 
