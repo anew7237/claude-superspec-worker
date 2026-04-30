@@ -6,3 +6,5 @@ coverage/
 .specify/
 CLAUDE.md
 wrangler.jsonc
+specs/**/*.md
+.claude/skills/speckit-*/

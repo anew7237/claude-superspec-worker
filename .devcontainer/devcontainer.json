@@ -92,11 +92,7 @@
   //   --cap-add:給 init-firewall.sh 用 iptables(若不啟用 firewall
   //              可以拿掉這兩行)
   // ============================================================
-  "runArgs": [
-    "--init",
-    "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW"
-  ],
+  "runArgs": ["--init", "--cap-add=NET_ADMIN", "--cap-add=NET_RAW"],
 
   // ============================================================
   // 生命週期

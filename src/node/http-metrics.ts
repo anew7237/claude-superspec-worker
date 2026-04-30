@@ -85,9 +85,7 @@ function probeRoutePathSupport(): void {
     .catch(() => {
       if (!routePathUnavailableWarned) {
         routePathUnavailableWarned = true;
-        logger.warn(
-          'HTTP middleware: routePath startup probe failed, route labels may degrade',
-        );
+        logger.warn('HTTP middleware: routePath startup probe failed, route labels may degrade');
       }
     });
 }
@@ -109,8 +107,7 @@ function assertCompatibleLabels(
 ): void {
   const actual = (metric as { labelNames?: readonly string[] }).labelNames ?? [];
   const ok =
-    actual.length === EXPECTED_LABELS.length &&
-    EXPECTED_LABELS.every((l) => actual.includes(l));
+    actual.length === EXPECTED_LABELS.length && EXPECTED_LABELS.every((l) => actual.includes(l));
   if (!ok) {
     throw new Error(
       `httpMetrics: '${metricName}' already registered with incompatible labelNames ` +
@@ -144,8 +141,7 @@ export const httpMetrics = (opts?: HttpMetricsOptions) => {
   const existingHistogram = register.getSingleMetric('http_request_duration_seconds') as
     | Histogram<string>
     | undefined;
-  if (existingHistogram)
-    assertCompatibleLabels(existingHistogram, 'http_request_duration_seconds');
+  if (existingHistogram) assertCompatibleLabels(existingHistogram, 'http_request_duration_seconds');
   const histogram =
     existingHistogram ??
     new Histogram({

@@ -46,30 +46,26 @@ describe('HTTP middleware metrics opt-out (US2)', () => {
   // pg, ioredis, prom-client, etc. transitively re-evaluated) routinely takes
   // 8–12s on slower CI / WSL2 hosts. Subsequent tests reuse the transform cache
   // and run in ~1s, so this 30s ceiling is only consumed by the first test.
-  it(
-    'disabled flag → /metrics has no http_* lines, still has default metrics',
-    async () => {
-      const { app } = await import('../../src/node/app.ts');
+  it('disabled flag → /metrics has no http_* lines, still has default metrics', async () => {
+    const { app } = await import('../../src/node/app.ts');
 
-      // Generate request traffic that would normally produce http_* samples.
-      await app.request('/');
-      await app.request('/');
+    // Generate request traffic that would normally produce http_* samples.
+    await app.request('/');
+    await app.request('/');
 
-      const res = await app.request('/metrics');
-      expect(res.status).toBe(200);
-      const body = await res.text();
+    const res = await app.request('/metrics');
+    expect(res.status).toBe(200);
+    const body = await res.text();
 
-      // FR-007: no http_* samples when disabled.
-      expect(body).not.toMatch(/^http_requests_total/m);
-      expect(body).not.toMatch(/^http_request_duration_seconds/m);
+    // FR-007: no http_* samples when disabled.
+    expect(body).not.toMatch(/^http_requests_total/m);
+    expect(body).not.toMatch(/^http_request_duration_seconds/m);
 
-      // FR-004 / SC-006: 001 default metrics still present.
-      expect(body).toMatch(/process_cpu_seconds_total/);
-      expect(body).toMatch(/process_resident_memory_bytes/);
-      expect(body).toMatch(/nodejs_heap_size_total_bytes/);
-    },
-    30_000,
-  );
+    // FR-004 / SC-006: 001 default metrics still present.
+    expect(body).toMatch(/process_cpu_seconds_total/);
+    expect(body).toMatch(/process_resident_memory_bytes/);
+    expect(body).toMatch(/nodejs_heap_size_total_bytes/);
+  }, 30_000);
 
   it('FR-008 non-regression: GET / returns same JSON shape as 001 baseline', async () => {
     const { app } = await import('../../src/node/app.ts');
