@@ -1,3 +1,23 @@
+// ─────────────────────────────────────────────────────────────────────
+// Adopter setup checklist (Mode C first-time deploy, per FR-012):
+//
+//   1. wrangler login
+//   2. wrangler d1 create claude-superspec-worker  → copy database_id
+//      below (replaces the <填於...> placeholder string)
+//   3. wrangler kv namespace create KV             → copy id below
+//      (replaces the <填於...> placeholder string)
+//   4. (optional) wrangler kv key put --binding=KV foo "<value>" --remote
+//   5. wrangler deploy
+//
+// Local dev (`pnpm dev:worker` / `pnpm test:worker`) tolerates the
+// placeholder strings — miniflare uses in-memory D1/KV regardless.
+// `wrangler deploy` (real Cloudflare) will fail or silently misbind
+// until adopters fill in real IDs.
+//
+// SECURITY: secrets (e.g. `UPSTREAM_URL` for production) MUST go via
+// `wrangler secret put`, NEVER inline here. `vars.UPSTREAM_URL` below
+// is a non-secret default for local dev only.
+// ─────────────────────────────────────────────────────────────────────
 {
   "name": "claude-superspec-worker",
   "main": "src/worker/index.ts",

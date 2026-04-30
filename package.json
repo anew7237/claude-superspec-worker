@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "node --watch --experimental-strip-types --disable-warning=ExperimentalWarning src/node/index.ts",
     "dev:node": "node --watch --experimental-strip-types --disable-warning=ExperimentalWarning src/node/index.ts",
-    "dev:worker": "wrangler dev",
+    "dev:worker": "wrangler dev --config wrangler.jsonc",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/node/index.js",
     "test": "pnpm test:node && pnpm test:worker",
@@ -23,7 +23,7 @@
     "format": "prettier --write .",
     "logs:worker": "wrangler tail",
     "db:migrate": "wrangler d1 migrations apply claude-superspec-worker --remote",
-    "deploy:worker": "wrangler deploy"
+    "deploy:worker": "wrangler deploy --config wrangler.jsonc"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.0",

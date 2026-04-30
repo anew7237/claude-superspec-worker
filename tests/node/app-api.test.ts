@@ -17,7 +17,7 @@ describe('Node /app-api routes', () => {
   it('GET /app-api/health → 200 with nodejs service', async () => {
     const res = await app.request('/app-api/health');
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { status: string; service: string };
+    const body = await res.json();
     expect(body).toEqual({ status: 'ok', service: 'nodejs' });
   });
 
@@ -30,7 +30,7 @@ describe('Node /app-api routes', () => {
 describe('GET /app-api/now', () => {
   it('returns 200 with postgres-sourced timestamp (happy)', async () => {
     const { pool } = await import('../../src/node/db.ts');
-    vi.mocked(pool.query).mockResolvedValue({
+    vi.mocked(pool).query.mockResolvedValue({
       rows: [{ now: '2026-04-30T10:00:00.000Z' }],
     } as never);
 
@@ -42,7 +42,7 @@ describe('GET /app-api/now', () => {
 
   it('returns 500 pg_empty_result when query yields no rows', async () => {
     const { pool } = await import('../../src/node/db.ts');
-    vi.mocked(pool.query).mockResolvedValue({ rows: [] } as never);
+    vi.mocked(pool).query.mockResolvedValue({ rows: [] } as never);
 
     const res = await app.request('/app-api/now');
     expect(res.status).toBe(500);
@@ -54,14 +54,14 @@ describe('GET /app-api/echo', () => {
   it('returns 400 missing_param when k is missing', async () => {
     const res = await app.request('/app-api/echo');
     expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: string; hint?: string };
+    const body = await res.json();
     expect(body.error).toBe('missing_param');
     expect(body.hint).toMatch(/k query/);
   });
 
   it('returns 200 with redis value when key hits', async () => {
     const { redis } = await import('../../src/node/redis.ts');
-    vi.mocked(redis.get).mockResolvedValue('hello-from-redis');
+    vi.mocked(redis).get.mockResolvedValue('hello-from-redis');
 
     const res = await app.request('/app-api/echo?k=foo');
     expect(res.status).toBe(200);
@@ -74,7 +74,7 @@ describe('GET /app-api/echo', () => {
 
   it('returns 404 not_found when key misses', async () => {
     const { redis } = await import('../../src/node/redis.ts');
-    vi.mocked(redis.get).mockResolvedValue(null);
+    vi.mocked(redis).get.mockResolvedValue(null);
 
     const res = await app.request('/app-api/echo?k=missing');
     expect(res.status).toBe(404);

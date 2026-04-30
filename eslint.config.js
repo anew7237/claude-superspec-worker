@@ -40,26 +40,43 @@ export default tseslint.config(
       ],
     },
   },
-  // Relaxed rules for tests: cloudflare:test SELF / Hono `app.request` /
-  // vitest `vi.fn()` / `vi.mocked(...)` are loosely-typed runtime fixtures
-  // that cascade into `unsafe-*` violations whenever a test reads `.status`
-  // / `.json()` / `.fetch()` off them. Type-aware lint rules don't add
-  // value here — vitest itself enforces correctness via test assertions.
-  // Keep the previous null-assertion + floating-promise relaxations from
-  // 001 baseline.
+  // Relaxed rules for tests (tests/**): null-assertion + floating-promises
+  // are idiomatic in Vitest suites — preserved from 001 baseline.
+  // no-misused-promises kept `error` here (real async correctness rule).
   {
     files: ['tests/**/*.ts'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
+    },
+  },
+  // Cloudflare-test-specific relaxations for tests/worker/** only:
+  // cloudflare:test SELF + env, Hono `app.request`, `vi.stubGlobal('fetch', ...)`
+  // produce loosely-typed runtime fixtures whose `.status` / `.json()` / `.fetch()`
+  // accesses cascade type-aware `unsafe-*` violations. Type-aware lint adds no
+  // value here — vitest assertions enforce correctness. Scoped to worker tests
+  // ONLY so tests/node/** keeps full type-aware coverage (incl. no-misused-promises
+  // + require-await + unbound-method — real correctness rules).
+  {
+    files: ['tests/worker/**/*.ts'],
+    rules: {
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
       '@typescript-eslint/no-unsafe-return': 'off',
-      '@typescript-eslint/no-misused-promises': 'off',
       '@typescript-eslint/no-unnecessary-type-assertion': 'off',
       '@typescript-eslint/unbound-method': 'off',
+      // mockImplementation(async () => Response) is the canonical pattern for
+      // per-call Response construction in handler scope (per T034 fix-loop +
+      // C1 review finding). Works with vi.fn()'s loose signature; the misused-
+      // promises rule's "void return expected" complaint is a false positive
+      // here (vi.fn() callback can return any). require-await fires because
+      // the async fn body has no await — but `async () => new Response()` is
+      // structurally identical to `() => Promise.resolve(new Response())` and
+      // the async form is more readable.
+      '@typescript-eslint/no-misused-promises': 'off',
+      '@typescript-eslint/require-await': 'off',
     },
   },
   // SC-009: production code (src/) must not use console.*; tests are

@@ -20,13 +20,12 @@ describe('ALL /app-api/* reverse proxy (contracts/reverse-proxy.md §3 + §7)', 
     // constructed when fetch() is called inside the worker handler — i.e.
     // bound to the handler's request scope, not the test fixture's scope.
     // Workers runtime forbids reading a Response body across request scopes.
-    fetchMock.mockImplementation(() =>
-      Promise.resolve(
+    fetchMock.mockImplementation(
+      async () =>
         new Response(JSON.stringify({ ok: true }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         }),
-      ),
     );
 
     const res = await SELF.fetch('http://example.com/app-api/health');
@@ -40,13 +39,12 @@ describe('ALL /app-api/* reverse proxy (contracts/reverse-proxy.md §3 + §7)', 
   });
 
   it('passes through 4xx body and status', async () => {
-    fetchMock.mockImplementation(() =>
-      Promise.resolve(
+    fetchMock.mockImplementation(
+      async () =>
         new Response(JSON.stringify({ error: 'upstream_specific_error' }), {
           status: 404,
           headers: { 'content-type': 'application/json' },
         }),
-      ),
     );
 
     const res = await SELF.fetch('http://example.com/app-api/echo?k=missing');
@@ -94,7 +92,7 @@ describe('ALL /app-api/* reverse proxy (contracts/reverse-proxy.md §3 + §7)', 
   });
 
   it('preserves path and query string in target URL (no prefix strip)', async () => {
-    fetchMock.mockImplementation(() => Promise.resolve(new Response('', { status: 200 })));
+    fetchMock.mockImplementation(async () => new Response('', { status: 200 }));
 
     await SELF.fetch('http://example.com/app-api/echo?k=foo&q=bar');
 

@@ -27,17 +27,10 @@ proxyRoute.all('/app-api/*', async (c) => {
 
   try {
     const upstreamRes = await fetch(target, fetchInit);
-    // Materialize the body in this handler's request scope. Workers runtime
-    // forbids passing a ReadableStream across request boundaries, which
-    // surfaces under @cloudflare/vitest-pool-workers when fetch is mocked
-    // with vi.stubGlobal — the mocked Response's stream is owned by the
-    // test fixture's request, and `new Response(upstreamRes.body, ...)`
-    // would attempt to read from that foreign scope. Buffering with
-    // arrayBuffer() rebinds ownership. Contract §5 invariant 4 ("not
-    // buffer") applies to the OUTGOING request body, not the incoming
-    // response body — so this does not violate streaming-friendly intent.
-    const body = await upstreamRes.arrayBuffer();
-    return new Response(body, {
+    // Stream the upstream body unmodified (per reverse-proxy.md §5
+    // invariant 4 + §6 chunked transfer-encoding row). Construct a new
+    // Response from the upstream's ReadableStream + status + headers.
+    return new Response(upstreamRes.body, {
       status: upstreamRes.status,
       statusText: upstreamRes.statusText,
       headers: upstreamRes.headers,
