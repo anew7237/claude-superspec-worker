@@ -7,11 +7,11 @@
 
 ## 主要量測表
 
-| 場景                                       | Mac M1 時間           | WSL2 Ubuntu 時間      | 符合 SC-001?          | 備註                  |
-| ------------------------------------------ | --------------------- | --------------------- | --------------------- | --------------------- |
-| 首次 build(devcontainer ready,banner 印出) | TODO(待 adopter 實測) | TODO(待 adopter 實測) | TODO(待 adopter 實測) | TODO(待 adopter 實測) |
-| Reopen container(已 build 過)              | TODO(待 adopter 實測) | TODO(待 adopter 實測) | TODO(待 adopter 實測) | TODO(待 adopter 實測) |
-| `make up` 到全綠 healthcheck(三個 service) | TODO(待 adopter 實測) | TODO(待 adopter 實測) | TODO(待 adopter 實測) | TODO(待 adopter 實測) |
+| 場景                                       | Mac M1 時間           | WSL2 Ubuntu 時間 | 符合 SC-001?                           | 備註                                                                                                                                                                            |
+| ------------------------------------------ | --------------------- | ---------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 首次 build(devcontainer ready,banner 印出) | TODO(待 adopter 實測) | 45 s             | ✅(≪ 15 min)                           | T006 / 2026-04-30;`vsc-*` 與 worker app image 已預先砍除,但 base image / devcontainer features / `~/.claude` mount(spec-kit + superpowers)仍 cached;banner 0 WARN / 0 NOT FOUND |
+| Reopen container(已 build 過)              | TODO(待 adopter 實測) | 25 s             | ✅(≪ 3 min)                            | T006 / 2026-04-30;只跑 `postStartCommand`                                                                                                                                       |
+| `make up` 到全綠 healthcheck(三個 service) | TODO(待 adopter 實測) | 20 s             | ✅(SC-001 spec 未明列上限,典型 ≤ 30 s) | T006 / 2026-04-30;app image 已 build(由前次 `make up` 留下);參照 T004 量到 ≈ 16 s,本次 20 s 屬同量級                                                                            |
 
 ## 量測方法
 
