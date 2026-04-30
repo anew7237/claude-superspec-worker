@@ -19,15 +19,47 @@ export default tseslint.config(
     },
   },
   {
-    ignores: ['dist/', 'node_modules/', 'coverage/', '.vitest-cache/', 'eslint.config.js'],
+    ignores: [
+      'dist/',
+      'node_modules/',
+      'coverage/',
+      '.vitest-cache/',
+      '.wrangler/',
+      'eslint.config.js',
+    ],
   },
-  // Relaxed rules for tests: assertion-style null-assertions and
-  // dynamic-import floating promises are idiomatic in Vitest suites.
+  // Repo-wide convention (per 設計源 §2.3 lesson 5): underscore-prefixed
+  // args/vars are intentionally unused (e.g. Hono's `app.onError((err, _c)
+  // => ...)`). ESLint 9 doesn't auto-ignore `_` prefix by default, so we
+  // opt in here.
+  {
+    rules: {
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
+    },
+  },
+  // Relaxed rules for tests: cloudflare:test SELF / Hono `app.request` /
+  // vitest `vi.fn()` / `vi.mocked(...)` are loosely-typed runtime fixtures
+  // that cascade into `unsafe-*` violations whenever a test reads `.status`
+  // / `.json()` / `.fetch()` off them. Type-aware lint rules don't add
+  // value here — vitest itself enforces correctness via test assertions.
+  // Keep the previous null-assertion + floating-promise relaxations from
+  // 001 baseline.
   {
     files: ['tests/**/*.ts'],
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-floating-promises': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-argument': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off',
+      '@typescript-eslint/no-misused-promises': 'off',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'off',
+      '@typescript-eslint/unbound-method': 'off',
     },
   },
   // SC-009: production code (src/) must not use console.*; tests are
@@ -36,6 +68,15 @@ export default tseslint.config(
     files: ['src/**/*.ts'],
     rules: {
       'no-console': 'error',
+    },
+  },
+  // Worker-side observability uses console.log/error as the log channel
+  // (per worker-routes.md §6 invariant 3 + FR-010 — Workers Logs + `wrangler tail`).
+  // This overrides the SC-009 src/** no-console rule for src/worker/** only.
+  {
+    files: ['src/worker/**/*.ts'],
+    rules: {
+      'no-console': 'off',
     },
   },
 );

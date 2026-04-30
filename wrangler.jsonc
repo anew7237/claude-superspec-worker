@@ -1,0 +1,21 @@
+{
+  "name": "claude-superspec-worker",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2025-09-01",
+  "vars": {
+    "UPSTREAM_URL": "http://localhost:8000"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "claude-superspec-worker",
+      "database_id": "<填於 wrangler d1 create 後>"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "KV",
+      "id": "<填於 wrangler kv namespace create 後>"
+    }
+  ]
+}

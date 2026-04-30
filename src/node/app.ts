@@ -43,6 +43,38 @@ app.get('/health', async (c) => {
   );
 });
 
+app.get('/app-api/health', (c) => c.json({ status: 'ok', service: 'nodejs' }));
+
+app.get('/app-api/now', async (c) => {
+  try {
+    const result = await pool.query<{ now: string }>('SELECT NOW() AS now');
+    if (result.rows.length === 0) {
+      return c.json({ error: 'pg_empty_result' }, 500);
+    }
+    return c.json({ source: 'postgres', now: result.rows[0].now });
+  } catch (err) {
+    logger.warn({ err }, 'app-api.now.failed');
+    return c.json({ error: 'pg_query_failed' }, 500);
+  }
+});
+
+app.get('/app-api/echo', async (c) => {
+  const key = c.req.query('k');
+  if (!key) {
+    return c.json({ error: 'missing_param', hint: 'k query parameter required' }, 400);
+  }
+  try {
+    const value = await redis.get(key);
+    if (value === null) {
+      return c.json({ error: 'not_found' }, 404);
+    }
+    return c.json({ source: 'redis', key, value });
+  } catch (err) {
+    logger.warn({ err }, 'app-api.echo.failed');
+    return c.json({ error: 'redis_get_failed' }, 500);
+  }
+});
+
 app.get('/metrics', async (c) => {
   c.header('Content-Type', register.contentType);
   return c.body(await register.metrics());

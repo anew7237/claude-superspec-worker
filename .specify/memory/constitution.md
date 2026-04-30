@@ -1,7 +1,12 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Current version: 1.0.0
+Version change: 1.0.0 → 1.1.0 (MINOR)
+
+Amendment date: 2026-04-30 (same day as initial 1.0.0 ratification —
+v1.1.0 lands together with feature `002-cloudflare-worker`, which is
+the actual implementation of the dual-runtime structure that v1.0.0
+described prospectively).
 
 Initial ratification (2026-04-30) — first constitution for the
 claude-superspec-worker unified monorepo.
@@ -20,9 +25,16 @@ The v1.2.2 content remains accessible at b9fba00 for reference
 during future amendments.
 
 Modified principles in 1.0.0: N/A (initial ratification).
+Modified principles in 1.1.0: none (the five Core Principles are
+  unchanged in body; the Variant Amendment is additive and clarifies
+  scope, it does NOT redefine any principle).
 Added principles: I-V (full set, see Core Principles below).
-Added sections: Technology Stack & Constraints, Development Workflow &
-  Quality Gates, Governance, Reference Implementation Notes.
+Added sections in 1.0.0: Technology Stack & Constraints, Development
+  Workflow & Quality Gates, Governance, Reference Implementation Notes.
+Added sections in 1.1.0: "Variant Amendment — Cloudflare Worker
+  Companion (2026-04-30)" (declares the dual-runtime variant explicitly,
+  per design source `.docs/20260430a-cloudflare-worker.md` §5.7 revised
+  text + spec FR-016).
 Removed sections in any version since 1.0.0: none.
 
 Templates requiring updates (current status, manual follow-up):
@@ -36,16 +48,21 @@ Templates requiring updates (current status, manual follow-up):
     no drift from constitution
 
 Follow-up TODOs (current status):
-  - When the Worker runtime lands (per .docs/20260430a-cloudflare-worker.md
-    §5 / 002-cloudflare-worker spec), add concrete entries to Reference
-    Implementation Notes: dual tsconfig (tsconfig.{node,worker}.json),
-    dual vitest config, wrangler.jsonc, .dev.vars handling.
+  - ✅ RESOLVED in 1.1.0: When the Worker runtime lands (per
+    .docs/20260430a-cloudflare-worker.md §5 / 002-cloudflare-worker
+    spec), add concrete entries to Reference Implementation Notes: dual
+    tsconfig (tsconfig.{node,worker}.json), dual vitest config,
+    wrangler.jsonc, .dev.vars handling. — Reference Implementation Notes
+    already enumerated these as "planned" at v1.0.0; the Variant
+    Amendment in v1.1.0 explicitly anchors them as "active from this
+    commit forward" and feature 002-cloudflare-worker mechanically
+    delivers them (T001–T011 toolchain tasks).
   - Widen package.json `vite` peer pin to mirror vitest 4 peer range
     (currently `^6.0.0`; vitest 4's range is `^6 || ^7 || ^8`). Tracked
     in B-narrow follow-ups, not constitutional.
-  - README.md still references "v1.2.2" and a non-existent
-    `specs/001-superspec-baseline/` path; queue for rewrite after
-    /speckit-specify 001-superspec-baseline produces the actual spec.
+  - ✅ RESOLVED: README.md "v1.2.2" reference + non-existent
+    `specs/001-superspec-baseline/` path queued for rewrite — README
+    rewrite landed alongside 001-superspec-baseline merge (PR #4).
 -->
 
 # Claude SuperSpec Worker Monorepo Constitution
@@ -490,4 +507,73 @@ accepting changes.
 - Source-control credential forwarding: SSH agent forwarded by the
   dev container via `${localEnv:SSH_AUTH_SOCK}` mount.
 
-**Version**: 1.0.0 | **Ratified**: 2026-04-30 | **Last Amended**: 2026-04-30
+## Variant Amendment — Cloudflare Worker Companion (2026-04-30)
+
+This section is an amendment to the constitution recorded at v1.1.0. It
+is **additive**: none of the five Core Principles above is redefined.
+The amendment exists to anchor — explicitly and at constitutional level —
+the dual-runtime reality that v1.0.0 described prospectively, and that
+feature `002-cloudflare-worker` lands mechanically.
+
+**Why this variant.** This monorepo (`claude-superspec-worker`) houses
+**two runtimes coexisting** under a single `.specify/` baseline, single
+`package.json`, and single toolchain:
+
+- **Node runtime** (`src/node/`): Hono on `@hono/node-server`, Postgres
+  via `pg`, Redis, `pino`, `prom-client`. Deployed via Docker
+  (`Dockerfile` + `docker-compose.yml` at repo root).
+- **Worker runtime** (`src/worker/`): Hono on Cloudflare Workers fetch
+  handler, D1 + KV bindings, `console.log`, no Prometheus. Deployed via
+  `wrangler deploy`.
+
+The two share `.specify/`, toolchain, and `package.json`. They have
+separate entries (`src/node/index.ts` vs `src/worker/index.ts`),
+separate vitest pools (plain Node vs `@cloudflare/vitest-pool-workers`
+miniflare), and separate tsconfigs (`tsconfig.node.json` vs
+`tsconfig.worker.json`, both extending a shared base). `src/shared/`
+holds the small set of runtime-agnostic types and constants both sides
+import.
+
+**Per-runtime deployment is intentional divergence.** Where the
+predecessor `claude-superspec-nodejs/` constitution implied "Docker is
+the deployment target," this monorepo amends that to: **Docker IS in
+scope for the Node runtime; wrangler IS in scope for the Worker
+runtime.** Each runtime uses its native deployment path; cross-runtime
+deployment uniformity is NOT a goal and MUST NOT be pursued. Principle
+III ("Container-First Development, Per-Runtime Deployment") already
+encodes this divergence; this amendment names it explicitly so future
+contributors do not interpret principle III as a defect to be cleaned
+up by, e.g., containerizing the Worker.
+
+**Type Safety End-to-End strengthened — mechanical, not aspirational.**
+The dual `tsconfig.{node,worker}.json` structure supplies a
+**mechanical** cross-runtime import ban: a Node-only API imported from
+Worker code (or a Workers-only global from Node code) fails typecheck
+under the relevant tsconfig. The `pnpm typecheck` script chains both —
+exit 0 only when both runtimes' import boundaries are respected. This
+converts baseline forward-declaration FR-022 from aspirational to
+mechanical from this commit forward.
+
+**Test-First continues — dual pool.** Vitest runs two pools (Node side
+plain, Worker side miniflare via `@cloudflare/vitest-pool-workers`).
+Both pools MUST be green before merge. Worker tests do NOT run inside
+Docker; they run on the host (or inside the dev container) with
+miniflare simulating the Workers V8 isolate, D1, and KV bindings.
+
+**Comparison demos are first-class.** Every Worker-native data path
+(`/d1/now`, `/kv/echo`) MUST have a counterpart on the Node side
+(`/app-api/now` via Postgres, `/app-api/echo` via Redis). The Worker
+`/app-api/*` route reverse-proxies (passthrough, no prefix-strip) to
+whatever URL `UPSTREAM_URL` resolves to. README MUST ship a 3 row × 2
+col endpoint table making this dual-runtime semantic visible to first
+readers. These comparison endpoints are part of the starter contract,
+not optional extras.
+
+**Reference.** Feature `002-cloudflare-worker` lands this amendment
+together with the source-tree changes that make it real. Baseline
+forward-declarations from `001-superspec-baseline`
+(FR-018 / FR-021 / FR-022 / SC-011) are mechanically active from this
+commit forward. Principles inherited unchanged: TDD, frequent commits,
+no over-engineering.
+
+**Version**: 1.1.0 | **Ratified**: 2026-04-30 | **Last Amended**: 2026-04-30

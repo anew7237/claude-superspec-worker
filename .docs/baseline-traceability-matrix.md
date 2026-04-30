@@ -38,11 +38,11 @@ Fork 此 monorepo 的 adopter 可依下列順序使用本 matrix:
 | FR-015  | `contracts/devcontainer.md` §「版本」+ `research.md` §2 row FR-015(multi-stage `base/deps/dev/build/prod-deps/runtime`)                                                                                               | _production_                     |
 | FR-016  | `contracts/cli-pipeline.md` §「Git extension hooks」`before_specify` row(mandatory hook)+ §「不變量」第 2 條                                                                                                          | US2                              |
 | FR-017  | `contracts/quality-gates.md` §「CI 對應(known gap)」+ §「不變量」第 1 條 + `research.md` §2 row FR-017                                                                                                                | US3                              |
-| FR-018  | `specs/001-superspec-baseline/spec.md` FR-018 verbatim(單一 runtime fork derivative)+ `research.md` §1.1 Q1 Clarification                                                                                             | _cross-cutting_                  |
+| FR-018  | `specs/001-superspec-baseline/spec.md` FR-018 verbatim + `research.md` §1.1 Q1 Clarification + ✅ **mechanical(since 002-cloudflare-worker, 2026-04-30)**:`specs/002-cloudflare-worker/contracts/worker-routes.md` 提供 Worker reference application(`/health` `/d1/now` `/kv/echo` 4 routes)+ `tests/worker/**` 18 cases    | _cross-cutting_                  |
 | FR-019  | `contracts/cli-pipeline.md` §「版本與相容」+ `.docs/toolchain-upgrade-playbook.md`(全文)+ `research.md` §2 row FR-019                                                                                                 | US5                              |
 | FR-020  | `.docs/upstream-outage-runbook.md`(全文)+ `contracts/devcontainer.md` §「失敗模式」(spec-kit outage row)+ `research.md` §2 row FR-020                                                                                 | US1 / US2                        |
-| FR-021  | `specs/001-superspec-baseline/spec.md` FR-021 verbatim + `specs/001-superspec-baseline/plan.md` §「Project Structure」(`src/{node,worker,shared}` + `tests/{node,worker}`)                                            | _cross-cutting_                  |
-| FR-022  | `specs/001-superspec-baseline/spec.md` FR-022 verbatim(aspirational rule 標註)+ `research.md` §1.3 Q3 Clarification(enforcement timing)+ `contracts/quality-gates.md` §「Advisory Gates」Cross-runtime import ban row | _cross-cutting, active from 002_ |
+| FR-021  | `specs/001-superspec-baseline/spec.md` FR-021 verbatim + `specs/001-superspec-baseline/plan.md` §「Project Structure」+ ✅ **mechanical(since 002-cloudflare-worker, 2026-04-30)**:`src/worker/{index,env,error}.ts` + `src/worker/routes/{health,d1,kv,proxy}.ts` + `src/shared/types.ts` + `tests/worker/**` 5 個 test 檔皆已落地 | _cross-cutting_                  |
+| FR-022  | `specs/001-superspec-baseline/spec.md` FR-022 verbatim + `research.md` §1.3 Q3 Clarification + `contracts/quality-gates.md` §「Advisory Gates」+ ⚠️ **partially mechanical(since 002-cloudflare-worker, 2026-04-30)**:`specs/002-cloudflare-worker/contracts/dual-tsconfig.md` §3 雙 tsconfig 對 ambient globals + `node:*` builtins 機械擋下;explicit named imports(`import { Pool } from 'pg'`)為 advisory(per T024-T026 finding,需 ESLint `no-restricted-imports` 補強為完全機械) | _cross-cutting, active from 002_ |
 
 ---
 
@@ -60,7 +60,7 @@ Fork 此 monorepo 的 adopter 可依下列順序使用本 matrix:
 | SC-008  | `.docs/parity-validation.md` §「SC-008 季度配額記錄表」(季度 ≤ 1 件 parity 缺陷)                                                                  | US3                              |
 | SC-009  | `eslint.config.js` `no-console: error`(Node `src/**/*.ts`)+ `contracts/observability.md` §1.1「Banned」(console.\* → pino)                        | US4                              |
 | SC-010  | `contracts/observability.md` §1.1「Default runtime metrics + 業務指標」+ `.specify/memory/constitution.md` §II(observability first-class)         | US4                              |
-| SC-011  | `specs/001-superspec-baseline/spec.md` SC-011 verbatim(aspirational, 生效時點標註)+ `research.md` §1.3 Q3 Clarification — 自 002 落地後正式計算   | _cross-cutting, active from 002_ |
+| SC-011  | `specs/001-superspec-baseline/spec.md` SC-011 verbatim + `research.md` §1.3 Q3 Clarification + ⚠️ **active(since 002-cloudflare-worker, 2026-04-30)**:`pnpm typecheck` 串接雙 tsconfig 為 mandatory gate;違規 PR mechanically rejected(對 ambient globals 嚴密;對 explicit named imports 為 advisory — per `specs/002-cloudflare-worker/quickstart.md` T024–T026 evidence)。違規數**目標 0** | _cross-cutting, active from 002_ |
 
 ---
 
@@ -72,14 +72,48 @@ contracts 或 research.md §2 對應行可 cite)。
 
 ---
 
-## Aspirational rules 註記
+## Aspirational rules 註記 — 002 落地後狀態(2026-04-30)
 
-FR-022 與 SC-011 於 v1.0.0 ratification 時標記為 **aspirational**:規則已寫入 spec
-(供 future audit reference),但 enforcement mechanism(雙 tsconfig 結構 +
-`@cloudflare/workers-types`)由 002-cloudflare-worker 落地後方能啟動。v1.0.0 時
-Worker 端程式碼與 types 皆不存在,違規空間客觀為 0,SC-011 不可量化。002 落地後,規則自動取得
-mechanical enforcement,無需在 v1.0.0 額外建 stub。Anchor 指 spec verbatim + Q3
-Clarification(research.md §1.3)即具完整溯源依據。
+### 歷史脈絡(v1.0.0 ratification)
+
+FR-022 與 SC-011 於 v1.0.0 ratification 時標記為 **aspirational**:規則已寫入 spec,但 enforcement mechanism(雙 tsconfig + `@cloudflare/workers-types`)由 002-cloudflare-worker 落地後方能啟動。v1.0.0 時 Worker 端程式碼與 types 皆不存在,違規空間客觀為 0,SC-011 不可量化。
+
+### 當前狀態(自 002-cloudflare-worker 落地起)
+
+四條 forward-declarations 升級狀態總表:
+
+| Anchor | v1.0.0 狀態      | 002 落地後狀態          | 機械強度                                                              | 補強建議                       |
+| ------ | ---------------- | ----------------------- | --------------------------------------------------------------------- | ------------------------------ |
+| FR-018 | 📅 forward-decl  | ✅ active               | reference app 落地(4 routes + jsonError + Env)                       | -                              |
+| FR-021 | 📅 reserved      | ✅ active               | 結構就位(`src/{node,worker,shared}` + `tests/{node,worker}`)         | -                              |
+| FR-022 | 📅 aspirational  | ⚠️ partially mechanical | ambient globals + node:\* builtins ✅;explicit named imports ❌(advisory) | ESLint `no-restricted-imports` |
+| SC-011 | 📅 aspirational  | ⚠️ partially active     | 配同 FR-022 機械強度;違規 PR mandatory-gate 阻擋                      | 同上                           |
+
+### FR-022 / SC-011 機械強度詳細(per T024–T026 verify)
+
+`specs/002-cloudflare-worker/quickstart.md` 之 T024 / T025 / T026 evidence sections 文件化:
+
+- ✅ **ambient global 違規**(eg. `let x: D1Database;` 不 import 直接用):
+  Node tsconfig `types: ["node"]` 不含 workers-types ambient → typecheck `Cannot find name 'D1Database'` → **機械擋下**。
+- ✅ **`node:*` builtins**(eg. `import * as fs from 'node:fs'` 在 worker 端):
+  Worker tsconfig `types` 不含 `@types/node` → typecheck `Cannot find module 'node:fs'` → **機械擋下**。
+- ⚠️ **explicit named imports from devDeps**(eg. `import { Pool } from 'pg'` in worker):
+  `pg` 在 devDependencies + `@types/pg` 為 transitive + `skipLibCheck: true` → typecheck **resolves**。**僅在 use-site 觸發 unused-vars / 拼錯 export name 等附帶錯誤時** typecheck 才 fail。**屬 advisory**(PR review 補強)。
+- ⚠️ **`import type { D1Database } from '@cloudflare/workers-types'` in node 側 / shared 側**:
+  workers-types 在 devDependencies → resolves。同上,僅 attendant 路徑(unused-vars 等)觸發 fail。**屬 advisory**。
+
+### 補強路徑(後續 feature 可選)
+
+要把 explicit named imports 也變成完全機械擋下,有兩條路:
+
+1. **ESLint `no-restricted-imports` rule**:於 `eslint.config.js` 為 `src/node/**/*.ts` 添加 `paths: ['@cloudflare/workers-types', 'cloudflare:*']`,為 `src/worker/**/*.ts` 添加 `paths: ['pg', 'redis', 'pino', 'prom-client', '@hono/node-server', 'fs', 'child_process', 'node:*']`。`pnpm lint` 為 mandatory gate(per spec FR-005 + SC-009),違規 PR 不可 merge。
+2. **`paths` mapping in tsconfig**:於各 tsconfig 加 `compilerOptions.paths` 映射禁忌 module 至 `never`(較少見;ESLint 路徑更標準)。
+
+當前 baseline + 002 之共識:**advisory + 嚴格 PR review** 為驗收型強度;補強為 mechanical 屬 follow-up feature 範圍(若量化發現違規率 > 0 即啟動)。
+
+### 量化(SC-011 配額)
+
+自 2026-04-30 起記錄;當前違規數 = **0**(本 feature 之 PR 內所有跨 runtime 引用皆遵守不成文約定)。
 
 ---
 
