@@ -1,7 +1,7 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 1.1.0 (MINOR)
+Version change: 1.0.0 → 1.1.0 (MINOR) → 1.1.2 (PATCH)
 
 Amendment date: 2026-04-30 (same day as initial 1.0.0 ratification —
 v1.1.0 lands together with feature `002-cloudflare-worker`, which is
@@ -28,6 +28,8 @@ Modified principles in 1.0.0: N/A (initial ratification).
 Modified principles in 1.1.0: none (the five Core Principles are
   unchanged in body; the Variant Amendment is additive and clarifies
   scope, it does NOT redefine any principle).
+Modified principles in 1.1.2: none (PATCH-level wording refinement
+  only, see "Modified sections in 1.1.2" below).
 Added principles: I-V (full set, see Core Principles below).
 Added sections in 1.0.0: Technology Stack & Constraints, Development
   Workflow & Quality Gates, Governance, Reference Implementation Notes.
@@ -35,6 +37,21 @@ Added sections in 1.1.0: "Variant Amendment — Cloudflare Worker
   Companion (2026-04-30)" (declares the dual-runtime variant explicitly,
   per design source `.docs/20260430a-cloudflare-worker.md` §5.7 revised
   text + spec FR-016).
+Modified sections in 1.1.2 (PATCH, 2026-05-03 — wording-only refinement,
+  no principle change; triggered by post-merge code review on
+  001-superspec-baseline + 002-cloudflare-worker specs):
+  - Reference Implementation Notes (Source-control credential
+    forwarding bullet): removed `${localEnv:SSH_AUTH_SOCK}` mount
+    reference to align with post-issue-#1 `.devcontainer/devcontainer.json`
+    + `specs/001-superspec-baseline/contracts/sensitive-material.md`
+    (PR #4's `5bc629e` patched contracts but missed the constitution).
+  - Variant Amendment "Type Safety End-to-End strengthened":
+    "mechanical" → "partially mechanical" to match
+    `specs/002-cloudflare-worker/contracts/dual-tsconfig.md` §3.1 +
+    `.docs/baseline-traceability-matrix.md` FR-022 row. Full
+    mechanization (ESLint `no-restricted-imports` rule for explicit
+    named imports) tracked as separate follow-up; SC-011 enforcement
+    on ambient / builtin violations remains active from v1.1.0.
 Removed sections in any version since 1.0.0: none.
 
 Templates requiring updates (current status, manual follow-up):
@@ -505,7 +522,10 @@ accepting changes.
 - Linter / formatter configuration: `eslint.config.js`,
   `.prettierrc.json`, `.prettierignore`.
 - Source-control credential forwarding: SSH agent forwarded by the
-  dev container via `${localEnv:SSH_AUTH_SOCK}` mount.
+  dev container via VS Code Dev Containers' built-in mechanism — no
+  explicit `${localEnv:SSH_AUTH_SOCK}` mount; host `ssh-add` is the
+  prerequisite. Historical context (Mac launchd path hard-fail) lives
+  at `.docs/onboarding-stopwatch.md` Layer B caveat + issue #1.
 
 ## Variant Amendment — Cloudflare Worker Companion (2026-04-30)
 
@@ -545,14 +565,20 @@ encodes this divergence; this amendment names it explicitly so future
 contributors do not interpret principle III as a defect to be cleaned
 up by, e.g., containerizing the Worker.
 
-**Type Safety End-to-End strengthened — mechanical, not aspirational.**
+**Type Safety End-to-End strengthened — partially mechanical.**
 The dual `tsconfig.{node,worker}.json` structure supplies a
-**mechanical** cross-runtime import ban: a Node-only API imported from
-Worker code (or a Workers-only global from Node code) fails typecheck
-under the relevant tsconfig. The `pnpm typecheck` script chains both —
-exit 0 only when both runtimes' import boundaries are respected. This
-converts baseline forward-declaration FR-022 from aspirational to
-mechanical from this commit forward.
+**partially mechanical** cross-runtime import ban: ambient globals
+(`process`、`Buffer`)、`node:*` builtins、Workers-only globals
+(`D1Database`、`KVNamespace`)在錯誤的 tsconfig 下 typecheck **會失敗**;
+但**顯式 named import**(`import { Pool } from 'pg'`、
+`import type {} from '@cloudflare/workers-types'`)目前**僅 advisory**
+(per `specs/002-cloudflare-worker/contracts/dual-tsconfig.md` §3.1 +
+`.docs/baseline-traceability-matrix.md` FR-022 row)。`pnpm typecheck`
+chains both — 兩個 tsconfig 之 ambient / builtin 邊界皆 pass 才 exit 0。
+完全機械化下一步為 ESLint `no-restricted-imports` rule(已知 follow-up,
+非本 commit 範圍)。This converts baseline forward-declaration FR-022 from
+fully aspirational to partially mechanical from this commit forward;
+SC-011 violation count 從本 commit 起對 ambient / builtin 違規生效。
 
 **Test-First continues — dual pool.** Vitest runs two pools (Node side
 plain, Worker side miniflare via `@cloudflare/vitest-pool-workers`).
@@ -576,4 +602,4 @@ forward-declarations from `001-superspec-baseline`
 commit forward. Principles inherited unchanged: TDD, frequent commits,
 no over-engineering.
 
-**Version**: 1.1.0 | **Ratified**: 2026-04-30 | **Last Amended**: 2026-04-30
+**Version**: 1.1.2 | **Ratified**: 2026-04-30 | **Last Amended**: 2026-05-03
