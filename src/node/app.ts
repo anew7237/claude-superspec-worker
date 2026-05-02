@@ -7,13 +7,13 @@ import { logger } from './logger.ts';
 
 export const app = new Hono();
 
-// FR-007: opt-out gate. Read once at module load (Edge Cases note: changes
-// do not hot-reload — restart required). Semantics:
+// Opt-out gate (per contracts/observability.md §1.3 invariant 5). Read once
+// at module load (changes do not hot-reload — restart required). Semantics:
 //   undefined / ''                → enabled (fail-open observability)
 //   'false' (case-insensitive, whitespace-trimmed) → disabled
 //   any other value ('TRUE', '1') → enabled
 // The `.trim()` defends against copy-pasted .env lines with trailing spaces
-// or newlines (see review-20260425-wsl.md M-2 regression tests).
+// or newlines.
 if (process.env.HTTP_METRICS_ENABLED?.trim().toLowerCase() !== 'false') {
   const METRICS_MOUNT = '/*';
   app.use(METRICS_MOUNT, httpMetrics({ mountPattern: METRICS_MOUNT }));

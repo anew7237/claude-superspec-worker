@@ -7,37 +7,41 @@ import { logger } from './logger.ts';
  * Factory producing a Hono middleware that records two HTTP business metrics
  * (counter + duration histogram) against the shared prom-client `register`.
  *
- * Design notes (see specs/000-http-middleware-metrics/research.md):
- * - R6: metric objects are instantiated inside the factory body (NOT at module
- *   load) so that when `httpMetrics()` is never called (opt-out path in US2),
- *   no `http_*` metrics are registered and the `/metrics` scrape stays clean.
- * - R4: histogram buckets are left unspecified so prom-client's documented
- *   default `[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]` applies.
- * - R5: requests to `/metrics` short-circuit — scrape traffic must not pollute
+ * Design notes (per specs/001-superspec-baseline/contracts/observability.md §1):
+ * - Metric objects are instantiated inside the factory body (NOT at module
+ *   load) so that when `httpMetrics()` is never called (opt-out path), no
+ *   `http_*` metrics are registered and the `/metrics` scrape stays clean.
+ * - Histogram buckets are left unspecified so prom-client's documented default
+ *   `[0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]` applies.
+ * - Requests to `/metrics` short-circuit — scrape traffic must not pollute
  *   business metrics.
- * - R7: no timers; updates are strictly request-driven.
+ * - No timers; updates are strictly request-driven.
  */
 
 export interface HttpMetricsOptions {
   /**
    * The Hono mount pattern at which this middleware is attached (e.g. '/*',
    * '/api/*'). Used to distinguish "no terminal handler matched" from
-   * "matched handler returned 404" for FR-005 (c). Caller must pass the SAME
-   * literal they pass to `app.use(...)` — the middleware has no runtime
-   * reflection into its own mount pattern. Defaults to '/*'.
+   * "matched handler returned 404" (per
+   * specs/001-superspec-baseline/contracts/observability.md §1.3 invariant 4).
+   * Caller must pass the SAME literal they pass to `app.use(...)` — the
+   * middleware has no runtime reflection into its own mount pattern.
+   * Defaults to '/*'.
    */
   mountPattern?: string;
 }
 
-// Module-local gate so the FR-014 degraded-label warning logs at most once
-// per process lifetime. Set by either the startup probe (`probeRoutePathSupport`)
+// Module-local gate so the degraded-label warning logs at most once per
+// process lifetime. Set by either the startup probe (`probeRoutePathSupport`)
 // or the per-request fallback inside the middleware — whichever detects the
 // degraded state first.
 let routePathUnavailableWarned = false;
 
 /**
- * FR-014 startup probe. Fires a synthetic request through a fresh Hono instance
- * and inspects `c.req.routePath` to detect whether the installed Hono version
+ * Startup probe (per
+ * specs/001-superspec-baseline/contracts/observability.md §1.3 invariant 3 +
+ * §1.4 row 3). Fires a synthetic request through a fresh Hono instance and
+ * inspects `c.req.routePath` to detect whether the installed Hono version
  * exposes the templated-route API. If absent (e.g. a future breaking change
  * removes the `@deprecated` getter without providing a drop-in replacement),
  * emit a single startup warning so adopters aren't silently degraded to
@@ -171,7 +175,8 @@ export const httpMetrics = (opts?: HttpMetricsOptions) => {
       const rawRoutePath = c.req.routePath;
       let route: string;
       if (rawRoutePath === '' || rawRoutePath == null) {
-        // FR-005 (b) + FR-014: Hono API degraded; warn once, bucket as 'unknown'.
+        // Hono API degraded (no routePath available); warn once, bucket as
+        // 'unknown' (per observability.md §1.3 invariant 3).
         if (!routePathUnavailableWarned) {
           routePathUnavailableWarned = true;
           logger.warn(
@@ -180,15 +185,17 @@ export const httpMetrics = (opts?: HttpMetricsOptions) => {
         }
         route = 'unknown';
       } else if (rawRoutePath === mountPattern && c.res.status === 404) {
-        // FR-005 (c): "未匹配任何 route(導致 404)". Both signals must align —
-        // rawRoutePath falling back to the middleware's own mount pattern AND
-        // status 404. This preserves FR-005 (a) for the legitimate case of a
+        // Unmatched 404 (per observability.md §1.3 invariant 4): "未匹配任何
+        // route(導致 404)". Both signals must align — rawRoutePath falling
+        // back to the middleware's own mount pattern AND status 404. This
+        // preserves the matched-route label for the legitimate case of a
         // matched handler returning 404 (e.g. REST "item not found" pattern
         // `app.get('/items/:id', c => c.json(..., 404))` — that request keeps
         // its templated route label, not 'not_found').
         route = 'not_found';
       } else {
-        // FR-005 (a): templated route path (e.g. "/", "/health", "/users/:id").
+        // Templated route path (e.g. "/", "/health", "/users/:id") — per
+        // observability.md §1.3 invariant 1 + 2 (auto-inherit + cardinality).
         route = rawRoutePath;
       }
 
