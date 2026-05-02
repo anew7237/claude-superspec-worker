@@ -83,6 +83,69 @@
 > 且通過所有 quality gate;baseline 不預製範例 feature,SC-007 由 adopter 自家流程的可重現性驗證。
 
 本量測為本 maintainer 自跑的 SC-007 in-repo 實證。adopter 端可重現性需各自驗證,baseline 不 promise
+
+---
+
+## Mode C — first-time deploy(T040 補充,P3 partial)
+
+**完成日期(部分):** 2026-05-03(build path 量測完成;live `wrangler deploy` 待 adopter run)
+
+歷史脈絡:T040(Mode C real deploy)在 002 落地時 deferred(per `.docs/baseline-traceability-matrix.md` 與 PR #5 review note,SC-002 / SC-005 標記為 documentation-only)。P3 follow-up 在 WSL2 host 跑 `wrangler deploy --dry-run` 以兌現 build path 半邊證據;live deploy 端到端 ≤ 30 min 之 SC-005 量測仍需 adopter 持有 Cloudflare account 才能完成。
+
+### Build path 量測(commit `4fca1fa`,WSL2)
+
+**Command:** `pnpm exec wrangler deploy --dry-run --outdir=.tmp-build`(host shell;`.tmp-build/` 為一次性產出,量測後立即 `rm -rf` 清掉)
+
+**Toolchain:** wrangler `3.114.17`(latest 為 4.87.0;升級為 separate follow-up,wrangler v4 入專案在 P3 範圍外)
+
+| 量項                  | 結果                                             | 備註                                                                                         |
+| --------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| Build pack            | exit 0(`--dry-run: exiting now.`)                | 不上傳、不需 wrangler login                                                                  |
+| Bundle 容量           | **63.90 KiB**(uncompressed)/ **15.82 KiB**(gzip) | Workers free-tier limit 1 MiB,使用率 ~6%                                                     |
+| Output `index.js`     | 65,436 bytes                                     | clean ESM bundle                                                                             |
+| Output `index.js.map` | 114,032 bytes                                    | source map                                                                                   |
+| Bindings 檢測         | 3/3 條 wrangler.jsonc 條目皆解析 ✅              | KV (`KV`) + D1 (`DB`,`claude-superspec-worker`) + Var (`UPSTREAM_URL=http://localhost:8000`) |
+
+**SC-003 forbidden-string scan**(grep against `.tmp-build/index.js`):
+
+| Pattern                    | Hit count |
+| -------------------------- | :-------: |
+| `from "pg"`                |     0     |
+| `from "redis"`             |     0     |
+| `from "pino"`              |     0     |
+| `from "prom-client"`       |     0     |
+| `from "@hono/node-server"` |     0     |
+| `require("pg")`            |     0     |
+| `require("redis")`         |     0     |
+| `require("pino")`          |     0     |
+
+→ **002 SC-003 通過**:Worker bundle 不含任一 Node-only 套件之 import / require 字串(8 條 pattern × 0 hit)。
+
+### Live deploy(pending — requires Cloudflare credentials)
+
+**Status:** PENDING
+
+要兌現 002 SC-005 之 ≤ 30 min 端到端證據,adopter / maintainer 需執行(本節 build path 量測已示範 wrangler.jsonc 結構正確,後續步驟需 credentials):
+
+1. **Login**:`pnpm exec wrangler login`(OAuth in browser;若 dev container 無 X11 forwarding,可在 host 跑 `wrangler login` 後 token 共享)
+2. **建 D1**:`pnpm exec wrangler d1 create claude-superspec-worker` → 取得 `database_id`,填回 `wrangler.jsonc:32`(覆寫 `<填於 wrangler d1 create 後>` placeholder)
+3. **建 KV**:`pnpm exec wrangler kv namespace create KV` → 取得 namespace id,填回 `wrangler.jsonc:38`
+4. **D1 schema**(若有 init SQL):`pnpm exec wrangler d1 execute claude-superspec-worker --remote --command="<DDL>"`
+5. **Deploy**:`pnpm exec wrangler deploy` → 紀錄 deploy 端到端 wall time
+6. **Smoke test**:`curl https://<worker-name>.<account-subdomain>.workers.dev/health` → 期望 `{"status":"ok","service":"worker","ts":"..."}`,HTTP 200
+7. 把整輪 wall time(login → smoke test 200)填入下方表格,更新 status 為 ✓:
+
+| 階段                | Wall time | 備註                     |
+| ------------------- | --------- | ------------------------ |
+| login               | TODO      | OAuth browser flow       |
+| d1 create           | TODO      |                          |
+| kv namespace create | TODO      |                          |
+| (optional) DDL      | TODO      |                          |
+| `wrangler deploy`   | TODO      | bundle upload + dispatch |
+| smoke test 200      | TODO      | curl `/health`           |
+| **合計**            | **TODO**  | SC-005 budget: ≤ 30 min  |
+
+**Build path 量測限制:** 本量測證 wrangler.jsonc 結構 + bundle 產出 + 禁忌 dep scan 三項皆綠;但 SC-005 budget 涵蓋整個 adopter 端到端 onboarding deploy(login + binding 建立 + deploy + smoke test),非僅 build。Live deploy 條目補入前,本紀錄**不**等同 SC-005 通過,僅證明 build path 正確。
 adopter 一定 ≤ 1 hour;但本 walkthrough 證明:**對 trivial 範圍 feature(1 endpoint,1 happy + 1 error
 分支),SC-007 budget 含寬裕緩衝(本次 21m,budget 60m)**,即使 adopter 較不熟悉 spec-kit 流程,
 仍有充足時間慢慢走。
