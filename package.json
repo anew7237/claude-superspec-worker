@@ -10,7 +10,7 @@
     "dev": "node --watch --experimental-strip-types --disable-warning=ExperimentalWarning src/node/index.ts",
     "dev:node": "node --watch --experimental-strip-types --disable-warning=ExperimentalWarning src/node/index.ts",
     "dev:worker": "wrangler dev --config wrangler.jsonc",
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node dist/node/index.js",
     "test": "pnpm test:node && pnpm test:worker",
     "test:node": "vitest run --config vitest.config.node.ts",
