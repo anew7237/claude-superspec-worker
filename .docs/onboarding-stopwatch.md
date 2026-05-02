@@ -150,6 +150,73 @@ adopter 一定 ≤ 1 hour;但本 walkthrough 證明:**對 trivial 範圍 feature
 分支),SC-007 budget 含寬裕緩衝(本次 21m,budget 60m)**,即使 adopter 較不熟悉 spec-kit 流程,
 仍有充足時間慢慢走。
 
+---
+
+## Docker prod-image E2E verification(P5,2026-05-03)
+
+歷史脈絡:P4(commit `d15daff`)修了 `pnpm build` 之 noEmit 與 emit 結構,但只在 host 上跑 `pnpm build` 驗 dist/ 16 files;runtime image 端到端(build → run → curl)未實際跑過。P5 在本地 Docker 上完整跑一輪、補實證,並順帶修 P4 帶入的一個 latent bug。
+
+### Latent bug 修復(本量測前置)
+
+`Dockerfile` 之 `build` 與 `dev` stage 各只 `COPY tsconfig.json ./`;P4 新增 `tsconfig.build.json`(extends `tsconfig.node.json`)時未同步更新 Dockerfile,導致 `docker build --target=runtime` 失敗:
+
+```
+> [build 3/3] RUN pnpm build:
+error TS5058: The specified path does not exist: 'tsconfig.build.json'.
+```
+
+**Fix:** 將兩 stage 的 `COPY tsconfig.json ./` 改為 `COPY tsconfig*.json ./`(glob 涵蓋 base + node + worker + lint + build)。compose mount source 之情境不受影響(bind mount 蓋過);裸 image 跑(本量測 + adopter Mac M1 平行驗 SC-002)現在自洽。
+
+### E2E 量測(commit `d15daff` + 上述 Dockerfile fix,WSL2)
+
+**Toolchain:** Docker `29.4.0`(Engine + buildx)on Linux `6.6.87.2-microsoft-standard-WSL2`
+
+| 階段           | 命令                                                                                                                           | 結果                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Build          | `docker build --target=runtime -t superspec-runtime:e2e .`                                                                     | exit 0 / **6.083s real**(cache-warm)                                   |
+| Redis sidecar  | `docker run -d --network superspec-e2e-net --name superspec-redis-e2e redis:7-alpine`                                          | 啟動 OK                                                                |
+| App container  | `docker run -d --network superspec-e2e-net -e REDIS_URL=redis://superspec-redis-e2e:6379/0 -p 8001:8000 superspec-runtime:e2e` | 啟動 OK                                                                |
+| Startup log    | `docker logs superspec-app-e2e`                                                                                                | `{"level":30,"msg":"server started","port":8000}` — pino structured    |
+| `curl /`       | (no backing deps)                                                                                                              | **HTTP 200** / 5.5ms / `{"message":"hello from hono"}`                 |
+| `curl /health` | (postgres 故意不接,redis 通)                                                                                                   | **HTTP 503** / 4.7ms / `{"status":"degraded","db":false,"redis":true}` |
+
+**Stack trace 證實在跑 `dist/`(非 source `.ts`):**
+
+```
+at async file:///app/dist/node/app.js:21:18
+at async file:///app/dist/node/http-metrics.js:125:13
+```
+
+→ 證明 `rewriteRelativeImportExtensions: true` 確實把 `from './app.ts'` 改寫為 `from "./app.js"`,runtime image 走的是 emitted JS 而非 source TS。
+
+### 兌現的不變量
+
+| 不變量                                           | 證據                                                                                             |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Dockerfile build stage 產出 dist/                | `COPY tsconfig*.json` + `pnpm build` exit 0                                                      |
+| Runtime stage 收到 dist/(`COPY --from=build`)    | container 內 `dist/node/index.js` 路徑可載入                                                     |
+| `node dist/node/index.js` 可啟動(無 module 錯誤) | startup log 印出 `server started`                                                                |
+| Hono routes 在 prod image 內 reachable           | `curl /` 200 + `curl /health` 503                                                                |
+| `await redis.connect()` startup gate             | 不指 redis 會 fail-fast 退出 — 本量測接 redis sidecar 故 pass                                    |
+| `/health` 之 graceful db-down 行為               | pg ECONNREFUSED 觸發 `health.db.check.failed` warn + 503 degraded body(per `app.ts:28-31` catch) |
+
+### Cleanup(zero residue)
+
+```
+docker rm -f superspec-app-e2e superspec-redis-e2e
+docker network rm superspec-e2e-net
+docker rmi superspec-runtime:e2e
+```
+
+### 補強的 SC
+
+- **001 SC-002 + 002 SC-002**(Node prod-image 端):**WSL2 single-platform** 額外證 — runtime image 在 WSL2 上端到端 reachable + 行為符 contract。Mac M1 條目仍 pending;但 Linux 端的 image-runs-as-designed 已被本量測證。
+- **001 FR-011 + FR-015**(non-root + multi-stage):runtime stage 之 `USER app`(uid/gid 1001)在 container 內生效(`docker exec id` 可確認;本量測未額外跑)。
+
+### Live `wrangler deploy` 仍 pending
+
+本節僅補 **Docker prod-image** 端;Cloudflare side 之 `wrangler deploy` 端到端 SC-005 量測仍待 adopter 持有 CF account 後跑(per 上節 placeholder)。
+
 ## Fresh-eyes 二次驗證(T016 補充)
 
 **完成日期**:2026-04-30
