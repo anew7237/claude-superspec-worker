@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-superspec-baseline`
 **Created**: 2026-04-30
-**Status**: Draft
+**Status**: Active
 **Input**: User description: "把現有 Node baseline + monorepo 結構規格化為 fresh spec"
 
 ## Clarifications

@@ -71,10 +71,23 @@ pnpm install --frozen-lockfile
 
 # 2. 確保 .dev.vars 設定為 mode B
 cp .dev.vars.example .dev.vars
-# 編輯 .dev.vars,把 UPSTREAM_URL 設為 http://host.docker.internal:8000
 #
-# (Linux 自架 Docker Engine 之 dev container 需 .devcontainer/devcontainer.json
-#  runArgs 加 --add-host=host.docker.internal:host-gateway,per plan key decision 7)
+# 編輯 .dev.vars 之 UPSTREAM_URL —— 取決於 wrangler dev 跑在哪裡:
+#
+# (a) wrangler dev 跑於 dev container 內(本 quickstart 預設情境):
+#     UPSTREAM_URL=http://host.docker.internal:8000
+#     - macOS / Windows Docker Desktop:host.docker.internal 自動可達
+#     - Linux 自架 Docker Engine:.devcontainer/devcontainer.json runArgs
+#       需加 --add-host=host.docker.internal:host-gateway
+#       (per plan key decision 7)
+#
+# (b) wrangler dev 跑於 host shell(非 dev container 內):
+#     UPSTREAM_URL=http://localhost:8000
+#     - 走 docker compose 在 host 之 published port (8000)
+#     - 不需 host.docker.internal 解析(host 本機 loopback 即可)
+#
+# 本 quickstart 之後續 step 假設 wrangler dev 與 docker compose 同視角
+# (均在容器內或均在 host);若混搭,請依 (b) 設 UPSTREAM_URL。
 
 # 3. 起 Node 端 docker compose stack(含 Postgres + Redis)
 make up

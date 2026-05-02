@@ -84,6 +84,16 @@ const fetchInit = { method, headers, body: isBodyless ? undefined : raw.body };
 1. **路徑 1:1 對應**:Worker `/app-api/X` 之 X 與 Node `/app-api/X` 之 X 必完全相同(byte-for-byte)
 2. **錯誤 model 之 worker 自產 vs upstream 透傳分流清楚**:client 可從 `error` code 字面看出來源(`upstream_*` 三條為 worker;`pg_*`/`redis_*`/`not_found`/`missing_param` 為 Node 端產)
 3. **Headers 不主動改**:Worker passthrough 不改 `Authorization` / `Cookie` / `User-Agent` 等;adopter 若要加 worker token 須擴充本 contract
+
+   **Advisory(starter limitation)**:本 starter 為簡化起見,**未** strip
+   RFC 7230 §6.1 hop-by-hop headers(`Connection`、`Keep-Alive`、
+   `Transfer-Encoding`、`TE`、`Trailer`、`Proxy-Authorization`、
+   `Proxy-Authenticate`、`Upgrade`)。Cloudflare Workers runtime 對部分項
+   自身會 normalize(如 `Connection`、`Transfer-Encoding`),但 adopter
+   若 fork 至 production reverse proxy,**MUST** 自行依 RFC 7230 §6.1
+   review 並於 `proxy.ts` request 與 response 兩側補 hop-by-hop strip。
+   §1 不變量 4 描述者為 starter 行為,**不**等同 production-grade reverse
+   proxy 規範。
 4. **Streaming-friendly**:non-bodyless method 之 body 用 `c.req.raw.body`(`ReadableStream`),不 `await text()` 也不 buffer
 5. **Worker 端 timeout 為 10s固定**:不可調(per 設計源 §1.5 / §2);adopter 若需動態 timeout 屬擴充
 6. **`UPSTREAM_URL` MUST be an origin**:格式 `scheme://host[:port]`(如 `http://localhost:8000` / `https://api.example.com`)。**不支援** path 段(如 `https://example.com/api/`)— `proxy.ts:14` 對 trailing slash 做 `replace(/\/$/, '')` 是 defensive normalize,不是 base-path 支援。若 adopter 設定含 path 之 UPSTREAM_URL,實際發出之 target URL 行為**未定義**(可能誤拼為 `https://example.com/api/app-api/X`,但 contract 不保證)。base-path 路由屬 derivative 擴充。

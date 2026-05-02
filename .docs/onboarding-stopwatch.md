@@ -28,6 +28,22 @@
 
 ## 第一個 SDD feature 量測(T009 補充)
 
+> **⚠ Reverted-artifacts disclaimer**:本 T009 量測底下引用之 sample
+> feature artifacts(`specs/001-superspec-baseline-T009/`、
+> `tests/node/echo.test.ts`、`src/node/app.ts +9 lines`)於 main 上
+> **已被 revert**(commit `4c23544`)。
+>
+> **Scope 決策理由**:T009 之目的為量測 SDD pipeline 整輪 elapsed,以
+> in-repo 證據兌現 SC-007(adopter 第一個自家 feature 可於 ≤ 1 小時
+> 走完 specify → clarify → plan → tasks → implement);`/echo` sample
+> feature 為**量測載體**而非 baseline 出貨內容。將 sample feature 進
+> main 會牴觸 baseline「不預製範例 feature(由 adopter 自行決定首
+> feature)」之定位 → 故僅保留量測紀錄(本節)+ companion docs 進
+> main,sample feature 本體 revert。
+>
+> 引用之檔案路徑於 branch `001-superspec-baseline-T009` HEAD `c77ff12`
+> 上仍可驗證,作為 SC-007 之歷史 anchor;grep main 不會找到這些檔。
+
 **完成日期**:2026-04-30
 **Sample feature**:`GET /echo` endpoint(`specs/001-superspec-baseline-T009/`)
 **Branch**:`001-superspec-baseline-T009`(從 `001-superspec-baseline` HEAD `8b699c7` fork,以
