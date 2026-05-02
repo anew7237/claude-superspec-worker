@@ -15,7 +15,10 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 
 # ---------- dev: hot-reload development image ----------
 FROM deps AS dev
-COPY tsconfig.json ./
+# Copy all tsconfig.*.json so typecheck / lint inside the container work
+# without depending on a host bind mount (compose case re-mounts source
+# anyway, but the image must stand alone).
+COPY tsconfig*.json ./
 COPY src ./src
 COPY tests ./tests
 ENV NODE_ENV=development
@@ -24,7 +27,9 @@ CMD ["pnpm", "dev"]
 
 # ---------- build: tsc produces dist/ ----------
 FROM deps AS build
-COPY tsconfig.json ./
+# tsconfig.build.json extends tsconfig.node.json which extends tsconfig.json;
+# all three (and any future tsconfig.*.json) are needed for `pnpm build`.
+COPY tsconfig*.json ./
 COPY src ./src
 RUN pnpm build
 
