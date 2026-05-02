@@ -96,4 +96,127 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
+  // FR-022 cross-runtime import ban — mechanical via no-restricted-imports.
+  // Companion to dual `tsconfig.{node,worker}.json`'s ambient/`node:*`
+  // mechanical strength: closes the explicit-named-import gap that the
+  // tsconfig types[] mechanism cannot enforce (per
+  // specs/002-cloudflare-worker/contracts/dual-tsconfig.md §3.1 +
+  // .docs/baseline-traceability-matrix.md FR-022 row).
+  //
+  // Scope: src/{node,worker,shared}/**. Tests are exempt — test fixtures
+  // legitimately reach across runtimes (e.g. tests/worker/** asserts on
+  // Node-shaped responses via fetch).
+  {
+    files: ['src/node/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@cloudflare/workers-types', '@cloudflare/workers-types/*'],
+              message:
+                'Worker-only types in Node code (FR-022 violation; Node runtime cannot use D1/KV/Workers globals).',
+            },
+            {
+              group: ['cloudflare:*'],
+              message: 'Worker-only Cloudflare module imports in Node code (FR-022 violation).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/worker/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['pg', 'pg/*'],
+              message:
+                'Node-only Postgres driver in Worker code (FR-022; Workers runtime has no TCP socket support for pg).',
+            },
+            {
+              group: ['redis', 'redis/*'],
+              message:
+                'Node-only Redis client in Worker code (FR-022; use Workers KV / Durable Objects instead).',
+            },
+            {
+              group: ['pino', 'pino/*'],
+              message:
+                'Node-only logger in Worker code (FR-022; use console.* — Workers Logs handles structured output).',
+            },
+            {
+              group: ['prom-client', 'prom-client/*'],
+              message:
+                'Node-only Prometheus client in Worker code (FR-022; Workers metrics go via Analytics Engine / Workers Observability).',
+            },
+            {
+              group: ['@hono/node-server', '@hono/node-server/*'],
+              message:
+                'Node-only Hono adapter in Worker code (FR-022; Workers entry uses default-export ExportedHandler, not @hono/node-server).',
+            },
+            {
+              group: ['node:*'],
+              message:
+                'Node builtins in Worker code (FR-022; Workers runtime is not Node — no node:fs / node:path / node:crypto without nodejs_compat flag, which is forbidden by Constitution).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  // src/shared/** is included by BOTH tsconfig.node.json and
+  // tsconfig.worker.json. To stay runtime-agnostic, the union of both
+  // ban-lists applies — anything banned in either runtime is also
+  // banned here. (See src/shared/types.ts header CONSTRAINT block.)
+  {
+    files: ['src/shared/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@cloudflare/workers-types', '@cloudflare/workers-types/*'],
+              message:
+                'Worker-only types in shared code (FR-022; src/shared MUST be runtime-agnostic).',
+            },
+            {
+              group: ['cloudflare:*'],
+              message: 'Worker-only Cloudflare imports in shared code (FR-022).',
+            },
+            {
+              group: ['pg', 'pg/*'],
+              message: 'Node-only Postgres driver in shared code (FR-022).',
+            },
+            {
+              group: ['redis', 'redis/*'],
+              message: 'Node-only Redis client in shared code (FR-022).',
+            },
+            {
+              group: ['pino', 'pino/*'],
+              message: 'Node-only logger in shared code (FR-022).',
+            },
+            {
+              group: ['prom-client', 'prom-client/*'],
+              message: 'Node-only Prometheus client in shared code (FR-022).',
+            },
+            {
+              group: ['@hono/node-server', '@hono/node-server/*'],
+              message: 'Node-only Hono adapter in shared code (FR-022).',
+            },
+            {
+              group: ['node:*'],
+              message:
+                'Node builtins in shared code (FR-022; src/shared MUST be runtime-agnostic).',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );
