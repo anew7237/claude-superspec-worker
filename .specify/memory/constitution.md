@@ -1,7 +1,7 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 1.1.0 (MINOR) → 1.1.2 (PATCH)
+Version change: 1.0.0 → 1.1.0 (MINOR) → 1.1.2 (PATCH) → 1.1.3 (PATCH)
 
 Amendment date: 2026-04-30 (same day as initial 1.0.0 ratification —
 v1.1.0 lands together with feature `002-cloudflare-worker`, which is
@@ -30,6 +30,9 @@ Modified principles in 1.1.0: none (the five Core Principles are
   scope, it does NOT redefine any principle).
 Modified principles in 1.1.2: none (PATCH-level wording refinement
   only, see "Modified sections in 1.1.2" below).
+Modified principles in 1.1.3: none (PATCH-level wording refinement
+  reflecting newly-landed mechanical enforcement; see "Modified
+  sections in 1.1.3" below).
 Added principles: I-V (full set, see Core Principles below).
 Added sections in 1.0.0: Technology Stack & Constraints, Development
   Workflow & Quality Gates, Governance, Reference Implementation Notes.
@@ -52,6 +55,18 @@ Modified sections in 1.1.2 (PATCH, 2026-05-03 — wording-only refinement,
     mechanization (ESLint `no-restricted-imports` rule for explicit
     named imports) tracked as separate follow-up; SC-011 enforcement
     on ambient / builtin violations remains active from v1.1.0.
+Modified sections in 1.1.3 (PATCH, 2026-05-03 — wording-only refinement
+  reflecting mechanical enforcement now in place; triggered by P2
+  follow-up landing `eslint.config.js` `no-restricted-imports` rule
+  for `src/{node,worker,shared}/**`):
+  - Variant Amendment "Type Safety End-to-End strengthened":
+    "partially mechanical" (v1.1.2) → "fully mechanical" (v1.1.3).
+    Documents two-layer enforcement (Layer 1 dual tsconfig for
+    ambient / `node:*`; Layer 2 ESLint `no-restricted-imports` for
+    explicit named imports). Both layers covered by mandatory gates
+    (`pnpm typecheck` + `pnpm lint`). SC-011 violation count from
+    v1.1.3 onward covers the full mechanical surface — no advisory
+    gap remains.
 Removed sections in any version since 1.0.0: none.
 
 Templates requiring updates (current status, manual follow-up):
@@ -565,20 +580,24 @@ encodes this divergence; this amendment names it explicitly so future
 contributors do not interpret principle III as a defect to be cleaned
 up by, e.g., containerizing the Worker.
 
-**Type Safety End-to-End strengthened — partially mechanical.**
-The dual `tsconfig.{node,worker}.json` structure supplies a
-**partially mechanical** cross-runtime import ban: ambient globals
-(`process`、`Buffer`)、`node:*` builtins、Workers-only globals
-(`D1Database`、`KVNamespace`)在錯誤的 tsconfig 下 typecheck **會失敗**;
-但**顯式 named import**(`import { Pool } from 'pg'`、
-`import type {} from '@cloudflare/workers-types'`)目前**僅 advisory**
-(per `specs/002-cloudflare-worker/contracts/dual-tsconfig.md` §3.1 +
-`.docs/baseline-traceability-matrix.md` FR-022 row)。`pnpm typecheck`
-chains both — 兩個 tsconfig 之 ambient / builtin 邊界皆 pass 才 exit 0。
-完全機械化下一步為 ESLint `no-restricted-imports` rule(已知 follow-up,
-非本 commit 範圍)。This converts baseline forward-declaration FR-022 from
-fully aspirational to partially mechanical from this commit forward;
-SC-011 violation count 從本 commit 起對 ambient / builtin 違規生效。
+**Type Safety End-to-End strengthened — fully mechanical (since v1.1.3).**
+The cross-runtime import ban is now mechanically enforced via two
+complementary mechanisms:
+
+- **Layer 1 — dual `tsconfig.{node,worker}.json`**:ambient globals
+  (`process`、`Buffer`)、`node:*` builtins、Workers-only globals
+  (`D1Database`、`KVNamespace`)在錯誤的 tsconfig 下 typecheck **會失敗**。
+  `pnpm typecheck` chains both — exit 0 只當兩個 tsconfig 邊界皆 pass。
+- **Layer 2 — ESLint `no-restricted-imports`**(`eslint.config.js`
+  `src/{node,worker,shared}/**` blocks):**顯式 named import**
+  (`import { Pool } from 'pg'`、`import type {} from '@cloudflare/workers-types'`、
+  `import * as fs from 'node:fs'` 等)在錯誤 runtime 下 ESLint **會 error**。
+  `pnpm lint` 為 mandatory gate(per spec FR-005 + SC-009)。
+
+兩層合計覆蓋:ambient + `node:*` + 顯式 named imports → 全部機械化擋下。
+This converts baseline forward-declaration FR-022 from fully aspirational
+(v1.0.0) → partially mechanical (v1.1.0–v1.1.2)→ **fully mechanical**
+(v1.1.3 onward);SC-011 violation count 自 v1.1.3 起涵蓋全部機械化路徑。
 
 **Test-First continues — dual pool.** Vitest runs two pools (Node side
 plain, Worker side miniflare via `@cloudflare/vitest-pool-workers`).
@@ -602,4 +621,4 @@ forward-declarations from `001-superspec-baseline`
 commit forward. Principles inherited unchanged: TDD, frequent commits,
 no over-engineering.
 
-**Version**: 1.1.2 | **Ratified**: 2026-04-30 | **Last Amended**: 2026-05-03
+**Version**: 1.1.3 | **Ratified**: 2026-04-30 | **Last Amended**: 2026-05-03
