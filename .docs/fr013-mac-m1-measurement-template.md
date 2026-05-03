@@ -26,29 +26,48 @@ hardware access 後,照本檔指引填空、套 patch、開 PR,即可關掉 FR-0
 
 ## Phase 1 — Anchor commit
 
-選用 commit anchor(雙平台都 checkout 同一 SHA):
+**Anchor 選用策略:量測當下 main HEAD**(不使用既有 WSL2 baseline 之 `4fca1fa`)。
 
-- **建議**:`4fca1fa`(P2 land 後,FR-022 Layer 2 已生效;與既有 WSL2 baseline
-  紀錄對齊,可直接 diff)
-- 替代:本 PR merge 後之 main HEAD(這條路徑下,WSL2 baseline 需重跑一次)
+理由:`4fca1fa` 為 P2 land 時的 snapshot,後續 P3-P5 + docs cleanup PR 已又前進了
+數筆。為涵蓋當前 main 的最終狀態(包含 P5 Dockerfile fix、P2 ESLint 機械化、
+docs cleanup 等),anchor 採用「量測當下 main HEAD」更能反映 adopter 實際 clone
+時所拿到的版本。
+
+**權衡**:既有 `parity-validation.md` L192-L216 之 WSL2 baseline (`4fca1fa`) 不能
+直接 diff,**Phase 3 的 WSL2 重跑步驟改為 mandatory**(原本已是 mandatory,但這裡
+特別強調無 fallback — 不能略過跑直接拿舊紀錄對照)。
+
+### 步驟
 
 ```bash
-# Mac 上
-git clone git@github.com:anew7237/claude-superspec-worker.git
-cd claude-superspec-worker
-git fetch origin
-git checkout 4fca1fa
-git rev-parse HEAD   # 確認 4fca1fa...
+# 任一台機器先在 main 上拿 SHA(例如 maintainer 在 WSL2 上先做)
+git checkout main
+git pull origin main
+ANCHOR_SHA=$(git rev-parse HEAD)
+echo "ANCHOR_SHA = $ANCHOR_SHA"   # 例如 8a4b2c1d...
 ```
 
-本機暫存(**不 commit**):
+把 `$ANCHOR_SHA` 寫到本機暫存(**不 commit**),通知 Mac 端量測者使用同一 SHA:
 
 ```
 session: 2026-MM-DD Mac M1 parity validation
-commit:  4fca1fa
+commit:  <ANCHOR_SHA — fill main HEAD at measurement time, eg. 8a4b2c1...>
 mac:     <name>  2026-MM-DD HH:MM <TZ>
-wsl2:    project maintainer  2026-05-03 03:56 UTC(parity-validation.md L192-L216)
+wsl2:    <name>  2026-MM-DD HH:MM <TZ>(本量測重跑,非沿用 4fca1fa 舊紀錄)
 ```
+
+Mac 端 checkout:
+
+```bash
+git clone git@github.com:anew7237/claude-superspec-worker.git
+cd claude-superspec-worker
+git fetch origin
+git checkout <ANCHOR_SHA>          # 用上面拿到的具體 SHA
+git rev-parse HEAD                 # 確認與 WSL2 端一致
+```
+
+> ⚠️ **不要用 `git checkout main`** — main 是 moving target,Mac 與 WSL2 兩端 clone
+> 時間若不同,可能落在不同 commit。一定要用具體 SHA。
 
 ---
 
@@ -72,9 +91,13 @@ wsl2:    project maintainer  2026-05-03 03:56 UTC(parity-validation.md L192-L216
 
 ## Phase 3 — 對 WSL2 重跑 baseline + diff
 
+> **必跑(mandatory)**:既有 `parity-validation.md` L192-L216 之 WSL2 紀錄是
+> `4fca1fa`,本量測 anchor 已換成 main HEAD,**不能沿用舊紀錄**。WSL2 端必須在
+> 同一 `<ANCHOR_SHA>` 上重跑 4 gate 後才能 diff。
+
 ```bash
-# WSL2 上同 anchor SHA
-git checkout 4fca1fa
+# WSL2 上同 anchor SHA(與 Mac 端 Phase 1 拿到的同一 SHA)
+git checkout <ANCHOR_SHA>
 {
   echo "=== pnpm test:node ==="     ; { time pnpm test:node 2>&1     ; } 2>&1
   echo "=== pnpm test:worker ==="   ; { time pnpm test:worker 2>&1   ; } 2>&1
@@ -141,9 +164,10 @@ diff /tmp/mac-norm.log /tmp/wsl-norm.log
 並把 L218-L230 的「Mac M1(pending)」整段改寫為「Mac M1 — ✅ verified」。
 
 ```markdown
-### 2026-MM-DD — Mac M1 配對量測(commit `4fca1fa`)
+### 2026-MM-DD — Mac M1 + WSL2 配對量測(commit `<ANCHOR_SHA>`)
 
-**Anchor:** 同 WSL2 baseline(`4fca1fa`)— 雙平台 parity 對照成立。
+**Anchor:** 量測當下 main HEAD `<ANCHOR_SHA>`(非沿用 `4fca1fa` 既有 baseline;
+WSL2 端於本量測一併重跑同 SHA,雙邊都是 fresh log)。
 
 **Host:**
 
@@ -207,7 +231,7 @@ L54 現行:
 改為:
 
 ```markdown
-| SC-002 | `.docs/parity-validation.md` §「本機驗證流程」+ §「Measurement Records — T038」+ ✅ **fully verified (2026-MM-DD)**:Mac M1 + WSL2 同 commit `4fca1fa` 4 gate(test:node / test:worker / typecheck / lint)100% 等價,0 parity 缺陷;SC-008 2026-Qx 配額未動用。`research.md` §1.2 Q2 Clarification(Worker 端 parity 標準等同 Node 端) | US3, _fully verified from 2026-MM-DD_ |
+| SC-002 | `.docs/parity-validation.md` §「本機驗證流程」+ §「Measurement Records — T038」+ ✅ **fully verified (2026-MM-DD)**:Mac M1 + WSL2 同 commit `<ANCHOR_SHA>`(量測當下 main HEAD,非 `4fca1fa`)4 gate(test:node / test:worker / typecheck / lint)100% 等價,0 parity 缺陷;SC-008 2026-Qx 配額未動用。`research.md` §1.2 Q2 Clarification(Worker 端 parity 標準等同 Node 端) | US3, _fully verified from 2026-MM-DD_ |
 ```
 
 ### Patch D — 同檔 SC-008 row(可選,若你想記下這次量測作為 baseline)
@@ -292,16 +316,18 @@ git rm .docs/fr013-mac-m1-measurement-template.md
 ```
 docs(p6): close FR-013 / SC-002 — Mac M1 + WSL2 parity verified
 
-Mac M1 配對量測完成於 commit 4fca1fa(同 WSL2 baseline anchor),
-4 gate(test:node / test:worker / typecheck / lint)結果 100% 等價,
+Mac M1 + WSL2 配對量測完成於 commit <ANCHOR_SHA>(量測當下 main HEAD,
+非 4fca1fa 既有 baseline — WSL2 端於本量測一併重跑同 SHA),4 gate
+(test:node / test:worker / typecheck / lint)結果 100% 等價,
 diff after normalization 為 0 語意性差異。
 
 Updates:
 - .docs/parity-validation.md: Mac M1 section PENDING → VERIFIED;
-  新增 2026-MM-DD measurement record block;SC-008 2026-Qx 配額紀錄
-  從 TODO 升為 0/✅
+  新增 2026-MM-DD measurement record block(含 Mac + WSL2 fresh pair);
+  SC-008 2026-Qx 配額紀錄從 TODO 升為 0/✅
 - .docs/baseline-traceability-matrix.md: SC-002 row 從 "WSL2 single-
-  platform 量測, Mac M1 pending" 升為 "fully verified (2026-MM-DD)"
+  platform 量測 (4fca1fa), Mac M1 pending" 升為 "fully verified
+  (<ANCHOR_SHA>, 2026-MM-DD)"
 - .docs/fr013-mac-m1-measurement-template.md: 刪除(用完即丟)
 
 對應:001 FR-013 / 001 SC-002 / 002 FR-013 / 002 SC-002 全部從
@@ -319,18 +345,20 @@ Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
 ## Summary
 
 關閉 **FR-013** + **SC-002**(001 + 002 兩 spec 都涵蓋)的 single-platform deferral
-狀態。Mac M1 配對量測完成,雙平台同 commit `4fca1fa` 4 gate 100% 等價。
+狀態。Mac M1 + WSL2 配對量測完成於 commit `<ANCHOR_SHA>`(量測當下 main HEAD,
+非沿用 `4fca1fa` 既有 baseline — WSL2 端一併在同 SHA 上重跑了 fresh log)。4 gate
+100% 等價。
 
 ## Measurement summary
 
-| 項目               | Mac M1                                      | WSL2(baseline)                                 | Diff                    |
-| ------------------ | ------------------------------------------- | ---------------------------------------------- | ----------------------- |
-| host               | <TODO: model> / macOS <TODO>                | Ubuntu 24.04 LTS / WSL2                        | n/a                     |
-| toolchain          | Node <TODO> / pnpm <TODO> / wrangler <TODO> | Node 24.15.0 / pnpm 9.12.0 / wrangler 3.114.17 | <TODO: 一致 / 差異說明> |
-| `pnpm test:node`   | <TODO> files / <TODO> tests pass            | 8 files / 26 tests pass                        | 0 語意性差異            |
-| `pnpm test:worker` | <TODO> files / <TODO> tests pass            | 5 files / 18 tests pass                        | 0 語意性差異            |
-| `pnpm typecheck`   | exit 0                                      | exit 0                                         | 0 差異                  |
-| `pnpm lint`        | exit 0                                      | exit 0                                         | 0 差異                  |
+| 項目               | Mac M1                                      | WSL2(於同 `<ANCHOR_SHA>` 重跑)              | Diff                    |
+| ------------------ | ------------------------------------------- | ------------------------------------------- | ----------------------- |
+| host               | <TODO: model> / macOS <TODO>                | Ubuntu 24.04 LTS / WSL2                     | n/a                     |
+| toolchain          | Node <TODO> / pnpm <TODO> / wrangler <TODO> | Node <TODO> / pnpm <TODO> / wrangler <TODO> | <TODO: 一致 / 差異說明> |
+| `pnpm test:node`   | <TODO> files / <TODO> tests pass            | <TODO> files / <TODO> tests pass            | 0 語意性差異            |
+| `pnpm test:worker` | <TODO> files / <TODO> tests pass            | <TODO> files / <TODO> tests pass            | 0 語意性差異            |
+| `pnpm typecheck`   | exit 0                                      | exit 0                                      | 0 差異                  |
+| `pnpm lint`        | exit 0                                      | exit 0                                      | 0 差異                  |
 
 完整 normalized diff(扣除時間戳 / 路徑 / wall time)為**空** — 詳見
 `.docs/parity-validation.md` 新增 measurement block。
