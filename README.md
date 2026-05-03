@@ -24,6 +24,56 @@
 
 ---
 
+## CI status
+
+[![CI](https://github.com/anew7237/claude-superspec-worker/actions/workflows/ci.yml/badge.svg)](https://github.com/anew7237/claude-superspec-worker/actions/workflows/ci.yml)
+
+本 monorepo 內建 GitHub Actions CI workflow(`.github/workflows/ci.yml`)+ Dependabot 自動升版(`.github/dependabot.yml`)— **adopter fork 後自動啟用,不需在 GitHub UI 額外配置**(per `specs/003-ci-workflow/`)。
+
+### Jobs
+
+| Job                                | 性質         | 行為                                                                                                                                                                 |
+| ---------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`gates`**                        | mandatory ✅ | 在 dev container 內跑 `pnpm typecheck` / `pnpm lint` / `pnpm test:node` / `pnpm test:worker` 4 mandatory gates                                                       |
+| **`wrangler-bundle-check`**        | mandatory ✅ | `wrangler deploy --dry-run` + grep bundle 驗 0 個 Node-only module(pg/redis/pino/prom-client/@hono/node-server/node:fs/node:child_process)+ size assertion ≤ 100 KiB |
+| **`secret-scan`**                  | mandatory ✅ | gitleaks 掃 PR diff(PR 觸發)/ 全 git history(push to main 觸發);0 OAuth credentials in commits                                                                       |
+| **`spec-coverage-advisory`**       | advisory ⚠️  | PR 動 `src/**` 但無對應 `specs/NNN-*/` artifact → comment 提示(不阻擋 merge)                                                                                         |
+| **`toolchain-isolation-advisory`** | advisory ⚠️  | PR 同時動 `package.json` / `pnpm-lock.yaml` 與 `src/**` / `tests/**` → comment 提示「toolchain 變更建議獨立 PR」(不阻擋 merge)                                       |
+
+### 觸發條件
+
+- `pull_request` to main(任何 PR)
+- `push` to main(merge 後驗證)
+- `workflow_dispatch`(手動觸發備用)
+
+### Dependabot
+
+每週一掃 npm + GitHub Actions 升版;按 grouping rule 開 PR(`@cloudflare/*` 同組;`@vitest/*` 同組;`@typescript-eslint/*` 同組;其他 minor + patch 一組;major 各自獨立 PR)。Open PR limit:npm 5 / github-actions 3。
+
+### Branch protection 設定(adopter fork 後手動設,1 分鐘)
+
+CI workflow 跑出來後,Required status checks 才可被加入 branch protection 清單。至 `Settings → Branches → Add branch protection rule for main`:
+
+1. ✅ **Require a pull request before merging**
+2. ✅ **Require status checks to pass before merging**
+3. 在 `Required status checks` 搜尋並加入 **3 個 mandatory checks**:
+   - ✅ `gates`
+   - ✅ `wrangler-bundle-check`
+   - ✅ `secret-scan`
+4. ❌ **不要加** advisory checks(`spec-coverage-advisory`、`toolchain-isolation-advisory`)— 它們是提示,加進來會誤擋 PR
+5. (可選)✅ **Require branches to be up to date before merging**
+
+完成後任何 PR 須 3 mandatory check 全綠才可 merge。
+
+### 詳細文件
+
+- 完整 walkthrough(adopter / maintainer / reviewer × 7 sections + 6 negative test scenarios):[`specs/003-ci-workflow/quickstart.md`](specs/003-ci-workflow/quickstart.md)
+- Spec(13 FRs / 11 SCs / 4 user stories):[`specs/003-ci-workflow/spec.md`](specs/003-ci-workflow/spec.md)
+- 5 jobs 之契約(input / output / failure mode):[`specs/003-ci-workflow/contracts/ci-gates.md`](specs/003-ci-workflow/contracts/ci-gates.md)
+- Dependabot policy 契約:[`specs/003-ci-workflow/contracts/dependabot-policy.md`](specs/003-ci-workflow/contracts/dependabot-policy.md)
+
+---
+
 ## Baseline Spec & Contracts
 
 本專案最新一版 baseline spec 位於 `specs/001-superspec-baseline/`,
