@@ -39,7 +39,7 @@ jobs:
     timeout-minutes: 20 # SC-001 cache miss budget 15 min + 5 min safety margin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # ───────────────────────────────────────────────────────────────────
       # Pre-create mount sources for devcontainer.json bind mounts.
@@ -113,7 +113,7 @@ jobs:
     timeout-minutes: 15 # cache hit ≤ 3 min;cache miss ≤ 10 min;5 min margin
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Pre-create devcontainer mount sources
         run: |
@@ -200,7 +200,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout (full history for git log scan)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0 # 全 history,讓 gitleaks 可掃 git log on push to main
 
