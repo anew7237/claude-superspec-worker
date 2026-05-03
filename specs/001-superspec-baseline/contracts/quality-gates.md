@@ -32,7 +32,7 @@
 
 ## 不變量
 
-1. **Mandatory gate 在容器內跑**:CI 與本地 dev container 必須使用同一 base image(FR-017);**現況 CI 缺**(known gap,由未來 feature 補建)。
+1. **Mandatory gate 在容器內跑**:CI 與本地 dev container 必須使用同一 base image(FR-017);**Ubuntu side ✅ mechanized 自 2026-05-04**(由 003-ci-workflow 落 `.github/workflows/ci.yml` 之 gates job,via `devcontainers/ci@v0.3`);macOS runner 仍 manual `.docs/parity-validation.md` 流程。
 2. **Trivial 豁免不繞過 mandatory gates**:豁免只豁 spec coverage,其他 gate 一律照樣跑(per spec FR-004)。
 3. **Lockfile = 一級 review object**:`pnpm-lock.yaml` 必須與 `package.json` 同 commit;不允許「先 merge package.json,後 merge lockfile」拆 PR。
 4. **Reviewer 可作者本人**(per FR-013):review gate 的目的是阻擋全自動 prompt-to-merge,非交叉審查;後者由 GitHub PR review 流程(repo collaborator 設定)疊加。
