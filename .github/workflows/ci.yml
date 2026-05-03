@@ -208,7 +208,15 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # 預設行為:PR mode 掃 PR diff;non-PR (push) 掃 git log
+          # gitleaks-action@v2 之 mode 由 GitHub Actions event 自動決定
+          # (per https://github.com/gitleaks/gitleaks-action#configuration):
+          #   - pull_request event → 掃 PR diff (與 base branch 之差),
+          #     finding 自動 inline annotate 在 PR diff line
+          #   - push event(含 push to main)→ 掃 git log 全 history
+          #     (依賴 fetch-depth: 0 取全 history)
+          # 不需顯式 env 切換 mode;本 workflow 設計兩 trigger 自動覆蓋
+          # FR-003 第 3 條 + ci-gates.md §4 + spec FR-003 wording。
+          # 若未來 gitleaks-action 預設行為變更,本 step 須加顯式 mode env。
           # gitleaks 預設 redact secret value (only file + line shown);per FR-011
 
   # ═══════════════════════════════════════════════════════════════════════
