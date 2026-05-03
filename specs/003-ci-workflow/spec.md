@@ -34,7 +34,7 @@
 
 **Acceptance Scenarios**:
 
-1. **Given** 一個乾淨 fork + clone,**When** adopter 開第一個 PR 至 main,**Then** GitHub PR 頁面出現 3 mandatory check(gates / wrangler-bundle-check / secret-scan)自動跑,在 ≤ 10 分內出結果。
+1. **Given** 一個乾淨 fork + clone,**When** adopter 開第一個 PR 至 main,**Then** GitHub PR 頁面出現 3 mandatory check(gates / wrangler-bundle-check / secret-scan)自動跑,在 ≤ 5 分(cache hit)/ ≤ 15 分(cache miss)內出結果(per SC-001 split)。
 2. **Given** PR 動到 `src/worker/index.ts` 加 `import { Pool } from 'pg'`,**When** CI 跑完,**Then** gates job 之 lint 步驟 fail(per 既有 `eslint.config.js` `no-restricted-imports` rule;FR-022 機械化),整 job exit 非 0,PR 標 mandatory check failure。
 3. **Given** PR 引入 dep 把 wrangler bundle 撐到 > 100 KiB,**When** CI 跑完,**Then** wrangler-bundle-check job fail,error 訊息指出 bundle size 超出 threshold + 當前實際大小。
 4. **Given** PR commit 內含 `password=secret123` 之文字 / 真實看似 OAuth token / `.env` 內容,**When** CI 跑完,**Then** secret-scan job fail,gitleaks 指出 finding 與位置。
@@ -156,7 +156,7 @@
 
 ### Measurable Outcomes
 
-- **SC-001**:乾淨 fork 後第一個 PR 觸發後,3 mandatory check(gates / wrangler-bundle-check / secret-scan)在 ≤ 10 分內出綠/紅結果(cache hit 路徑 ≤ 5 分;cache miss 路徑 ≤ 15 分)。
+- **SC-001**:乾淨 fork 後第一個 PR 觸發後,3 mandatory check(gates / wrangler-bundle-check / secret-scan)出綠/紅結果之時間上限為 **cache hit 路徑 ≤ 5 分;cache miss 路徑 ≤ 15 分**(US1 #1 之 acceptance 採同 split,無單一 ≤ 10 分 wrapper bound)。
 - **SC-002**:CI 之 4 mandatory gates(於 dev container 內跑)結果與本機 dev container 跑同 commit 之結果 **100% 等價**(pass/fail count + 訊息一致);非語意性差異(時間戳 / wall time / GitHub Actions runner ID)允許,任何「同 test 一邊 pass / 另一邊 fail」即視為 parity 缺陷,計入 001 SC-008 季度配額。
 - **SC-003**:跨 runtime import 違規 PR 之 lint 失敗率 = 100%(per 既有 002 FR-022 + ESLint `no-restricted-imports`;CI 機械驗證,無遺漏)。
 - **SC-004**:Worker bundle 含 Node-only module 之 PR 之 wrangler-bundle-check 失敗率 = 100%(grep 機械驗證)。

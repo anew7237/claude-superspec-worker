@@ -57,16 +57,16 @@
 
 ### 1.4 實作對照
 
-對應 contract 內每條不變量到 `src/node/` 實際實作位置(行號錨定當前 working tree 之 `src/node/`(post T001 + T002.preq + T011);若 `src/node/` 後續變動,須同步更新此映射或重跑 contract amendment):
+對應 contract 內每條不變量到 `src/node/` 實際實作 symbol(以 `export` / `function` / `const` 名稱錨定,drift-resistant;若 `src/node/` 後續 rename 須同步更新此映射或重跑 contract amendment):
 
-| Contract 不變量 | 實作位置 | 簡述 |
+| Contract 不變量 | 實作 symbol | 簡述 |
 |---|---|---|
-| 1. 新加 HTTP route 自動繼承指標 | `src/node/http-metrics.ts:120` (`httpMetrics()` factory) → middleware closure `:156-203` | 任何在 `app.use(mountPattern, ...)`(`src/node/app.ts:19`)之下的 route,於 finally 區塊一律記錄 counter `:200` + histogram `:201` |
-| 2. Cardinality 防護 | `src/node/http-metrics.ts:171` (`c.req.routePath` 擷取) + `:192` 標準路徑分支 | 直接以 routePath 為 label;模板路徑而非實際 URL |
-| 3. 未匹配 → `not_found`;routePath API 失效 → `unknown` | `src/node/http-metrics.ts:53` (`probeRoutePathSupport()`) + `:171-181` per-request fallback | `probeRoutePathSupport()` 開機合成請求探測(由工廠函式於 `:154` 觸發);每次請求 finally 內若 `routePath` 空再 fallback,`:175-180` `logger.warn` 至多一次(由 `:36` 模組級 gate 守) |
-| 4. Matched 404 vs unmatched 404 分流 | `src/node/http-metrics.ts:182-189` mountPattern 比較分支 | `rawRoutePath === mountPattern && status === 404` → `'not_found'`;其餘 404 走 `:192` else 保留模板路徑 |
-| 5. `/health` `/` byte-equivalent on opt-out | `src/node/app.ts:17` 模組載入時 short-circuit | `HTTP_METRICS_ENABLED.trim().toLowerCase() === 'false'` 直接 short-circuit,middleware 完全不掛(`:19` 條件包覆) |
-| 6. `/metrics` 在 `/health` 503 時仍可 serve | `src/node/app.ts:46` `/metrics` handler | 只 `await register.metrics()`,不依賴 `pool.query` / `redis.ping`;`/health` 自身在 `:24` |
+| 1. 新加 HTTP route 自動繼承指標 | `src/node/http-metrics.ts` `httpMetrics()` factory → returned middleware closure | 任何在 `src/node/app.ts` `app.use(mountPattern, httpMetrics())` 之下的 route,於 finally 區塊一律記錄 `http_requests_total` counter + `http_request_duration_seconds` histogram |
+| 2. Cardinality 防護 | `src/node/http-metrics.ts` middleware closure(`c.req.routePath` 擷取分支) | 直接以 routePath 為 label;模板路徑而非實際 URL |
+| 3. 未匹配 → `not_found`;routePath API 失效 → `unknown` | `src/node/http-metrics.ts` `probeRoutePathSupport()` + middleware closure per-request fallback | `probeRoutePathSupport()` 開機合成請求探測;每次請求 finally 內若 `routePath` 空再 fallback,`logger.warn` 由 module-level gate 守至多一次 |
+| 4. Matched 404 vs unmatched 404 分流 | `src/node/http-metrics.ts` middleware closure mountPattern 比較分支 | `rawRoutePath === mountPattern && status === 404` → `'not_found'`;其餘 404 保留模板路徑 |
+| 5. `/health` `/` byte-equivalent on opt-out | `src/node/app.ts` 模組載入時 short-circuit | `HTTP_METRICS_ENABLED.trim().toLowerCase() === 'false'` 直接 short-circuit,middleware 完全不掛 |
+| 6. `/metrics` 在 `/health` 503 時仍可 serve | `src/node/app.ts` `/metrics` handler | 只 `await register.metrics()`,不依賴 `pool.query` / `redis.ping`;`/health` handler 為獨立 route |
 
 ## 2. Worker runtime 觀測面(forward-declared,由 002 落地)
 

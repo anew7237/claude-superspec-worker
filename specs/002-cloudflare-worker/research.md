@@ -25,7 +25,12 @@
 - 只支援 Mode B:rejected — 入門 friction 大,新讀者放棄機率高。
 - Delegate to plan / docs:rejected — Q1 直接影響 spec 之 acceptance scenario + FR-015 + SC,屬 spec-level。
 
-**Spec impact**:`## Clarifications` Session 2026-04-30 + US1 acceptance 改寫雙 mode + FR-015 改寫 + SC-011 雙 mode 計時。Plan-level decision:Mode B UPSTREAM_URL 採 `host.docker.internal`。
+**Spec impact**:`## Clarifications` Session 2026-04-30 + US1 acceptance 改寫雙 mode + FR-015 改寫 + SC-011 雙 mode 計時。**Plan-level decision(2026-05-04 cross-spec review 修正)**:Mode B UPSTREAM_URL 採 location-aware default,**取決於 wrangler dev 運行位置**:
+
+- wrangler dev 跑於 host(WSL2 / Mac / Windows native)→ `http://localhost:8000`(T036 SC-011 acceptance 即此情境)
+- wrangler dev 跑於 dev container 內 → `http://host.docker.internal:8000`
+
+`.dev.vars.example` 已採此規則。原舊版「canonical = `host.docker.internal`」之 plan/research 描述為 dev-container-only assumption,與實際 T036 acceptance(WSL2 host wrangler → `localhost:8000`)矛盾,以本段為準。
 
 ## Section 2 — 設計源 §6 Decisions Log(已固化,本 feature 直接 cite 不重 derive)
 

@@ -98,7 +98,7 @@ description: "SuperSpec Worker Monorepo Baseline — task list to verify regulat
 
 ### Implementation for User Story 4
 
-- [ ] T011 [P] [US4] 在 `specs/001-superspec-baseline/contracts/observability.md` §1.4 「實作對照」表內,把 行號 placeholder 替換為 `src/node/http-metrics.ts` 與 `src/node/app.ts` 的實際當前行號(grep 該檔取得 `httpMetrics(`、`probeRoutePathSupport(`、`HTTP_METRICS_ENABLED` 等 anchor 的行號,寫入表格)。**對應 contracts/observability.md §1.4 implementation-mapping accuracy**
+- [x] T011 [P] [US4] ~~在 `specs/001-superspec-baseline/contracts/observability.md` §1.4 「實作對照」表內,把 行號 placeholder 替換為 `src/node/http-metrics.ts` 與 `src/node/app.ts` 的實際當前行號~~ **改採 cross-spec review (2026-05-04) 之 follow-up 方案**:§1.4 表格已改用 symbol(`export` / `function` / `const` 名稱)為 anchor,drift-resistant — 不再隨 src 行號變動而 stale。對應 contracts/observability.md §1.4 implementation-mapping accuracy。
 
 **Checkpoint**: Node 端 observability 不變量與 src 行號雙向 traceable;regression test(T002 已涵蓋)凍結未來變動
 

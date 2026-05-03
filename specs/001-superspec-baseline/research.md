@@ -87,9 +87,15 @@
 | FR-021 | monorepo 結構(`src/{node,worker,shared}` + `tests/{node,worker}`) | ✅ Node + Worker(since 002) | `src/node/` + `tests/node/` 已落地;`src/worker/` / `src/shared/` / `tests/worker/` 由 002 落地內容(全 5 個 worker test 檔 + 4 個 worker route 檔 + Env + jsonError + shared placeholder) |
 | FR-022 | 跨 runtime import ban(typecheck-level) | ⚠️ partially mechanical(since 002) | 自 v1.0.0 為 aspirational;002 落地後啟動 mechanical enforcement(雙 tsconfig + `@cloudflare/workers-types`)。對 ambient globals + node:* builtins ✅ 機械擋下;對 explicit named imports(eg. `import { Pool } from 'pg'`)為 advisory(per `specs/002-cloudflare-worker/quickstart.md` T024-T026 evidence)。完全機械化需 ESLint `no-restricted-imports` 補強 — 屬 follow-up feature |
 
-**Gaps 統計(v1.0.0 ratification 時點)**: ✅ 17 / ⚠ 4 / 📅 3 / ❌ 0(其中 ⚠ 與 📅 之間有重疊,因部分 FR 同時對 Node 端 ✅ 對 Worker 端 📅)
+**Gaps 統計(單一 status 規則,加總 22)**:
 
-**Update 2026-04-30(002-cloudflare-worker 落地後)**:📅 Worker forward-decls 全數兌現(FR-006 / FR-018 / FR-021 → ✅);FR-022 升 ⚠️ partially mechanical(ambient + node:* 機械;explicit named imports 為 advisory)。當前 gaps:✅ 18 / ⚠ 2(FR-017 CI + FR-022 partial)/ 📅 0 / ❌ 0。
+| 時點 | ✅ | ⚠ | 📅 | ❌ | 備註 |
+|---|---|---|---|---|---|
+| v1.0.0 ratification | 15 | 1 | 6 | 0 | ✅ = Node 端完全且無 Worker 對應依賴(FR-001/002/004/007~016/019/020);⚠ = FR-017(CI 不存在);📅 = FR-003/005/006/018/021/022(Worker forward-decl 或 aspirational) |
+| 2026-04-30(002 落地後) | 20 | 2 | 0 | 0 | Worker forward-decls 全兌現(FR-003/005/006/018/021 → ✅);FR-022 自 📅 升 ⚠ partially mechanical(ambient + node:* 機械;explicit named imports advisory);⚠ = FR-017 + FR-022 partial |
+| 2026-05-04(003 落地後) | 20 | 2 | 0 | 0 | FR-017 自 ⚠ 升 ⚠ "Ubuntu mechanized only"(macOS parity 仍走 `.docs/parity-validation.md` 人工流程,opt-in mechanization 追蹤於 issue #34);FR-022 維持 ⚠ partial(ESLint `no-restricted-imports` follow-up feature 範圍) |
+
+**規則**:每條 FR 在每個時點僅取一個 status(若 Node 端 ✅ 而 Worker 端 📅,該時點該 FR 計為 📅,即 worst-case wins)。原舊版「✅ 17 / ⚠ 4 / 📅 3 = 24」之雙重計數已修正。
 
 **Critical follow-ups**(出 baseline 之外的 gap):
 

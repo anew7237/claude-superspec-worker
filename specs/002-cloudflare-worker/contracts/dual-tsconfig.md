@@ -79,6 +79,8 @@
 - `include` 三 path + `vitest.config.worker.ts`(讓 plugin import 被 typecheck 看見)
 - 此 tsconfig 對 `import { pool } from 'pg'` typecheck **MUST fail**(因 `@types/node` 不在,且 `pg` module 之 type 不解析)
 
+> **Note(subpath vs compatibility_date 獨立性)**:`@cloudflare/workers-types ^4` 之 types 入口 subpath 為 `@cloudflare/workers-types/2023-07-01`(workers-types v4 ship 之唯一 subpath);此值與 `wrangler.jsonc` 之 `compatibility_date: 2025-09-01` **互為獨立**。Runtime compatibility date 由 wrangler 之 compat-date 機制決定,types subpath 僅為 npm package 內部 path convention,**不會**隨 `compatibility_date` 升版而改。reviewer 讀 spec FR alone 若 expect subpath 對應到 2025-09-01,實際應以本 contract 與 npm package 內部結構為準。
+
 ### 1.4 `tsconfig.lint.json`(既有,本 feature 沿用 + 擴 include)
 
 ESLint flat config 用此檔做 type-aware linting。本 feature **擴 include** 至涵蓋 Worker side:
