@@ -152,14 +152,14 @@ ESLint flat config 用此檔做 type-aware linting。本 feature **擴 include**
 
 | 場景 | 期望行為 |
 | --- | --- |
-| Node 開發者誤 `import type { D1Database } from '@cloudflare/workers-types'` | typecheck **resolves**(advisory only,per §3.1)— 僅當 `let _x: D1Database` 觸發 unused-vars 或拼錯 export name 才 fail;靠 PR review 主動駁回。需 ESLint `no-restricted-imports` 才完全機械(follow-up) |
-| Node 端 ambient `let x: D1Database` 不 import 直接用 | `tsc -p tsconfig.node.json` fail with `Cannot find name 'D1Database'`;PR 不可 merge(✅ 完全機械) |
-| Worker 開發者誤 `import { Pool } from 'pg'` | typecheck **resolves**(`@types/pg` transitive + `skipLibCheck`)— 僅當 attendant 錯誤觸發才 fail;同上需 ESLint 補強為完全機械 |
-| Worker 端 `import * as fs from 'node:fs'` | `tsc -p tsconfig.worker.json` fail with `Cannot find module 'node:fs'`(`@types/node` 不在 worker `types`);PR 不可 merge(✅ 完全機械) |
-| Worker 端 ambient `process.env.X` | 同上 fail with `Cannot find name 'process'`(✅ 完全機械) |
-| `src/shared/error-codes.ts` import `node:fs` | 兩 tsconfig 都 fail(✅ 完全機械) |
-| `src/shared/types.ts` `import type { D1Database }` | chained typecheck **resolves**(per T026 evidence)— advisory only;PR review 駁回 |
-| 新增 `@cloudflare/workers-types` 至 `tsconfig.node.json` `types` | typecheck 仍綠但 cross-runtime ban 破功;reviewer 駁回(advisory gate) |
+| Node 開發者誤 `import type { D1Database } from '@cloudflare/workers-types'` | ESLint `no-restricted-imports`(per `eslint.config.js` `src/node/**/*.ts` block)→ `pnpm lint` exit ≠ 0;PR 不可 merge(✅ 完全機械,Layer 2,since v1.1.3) |
+| Node 端 ambient `let x: D1Database` 不 import 直接用 | `tsc -p tsconfig.node.json` fail with `Cannot find name 'D1Database'`;PR 不可 merge(✅ 完全機械,Layer 1) |
+| Worker 開發者誤 `import { Pool } from 'pg'` | ESLint `no-restricted-imports`(per `eslint.config.js` `src/worker/**/*.ts` block,patterns `pg` / `redis` / `pino` / `prom-client` / `@hono/node-server` / `node:*`)→ `pnpm lint` exit ≠ 0;PR 不可 merge(✅ 完全機械,Layer 2,since v1.1.3) |
+| Worker 端 `import * as fs from 'node:fs'` | `tsc -p tsconfig.worker.json` fail with `Cannot find module 'node:fs'`(`@types/node` 不在 worker `types`);PR 不可 merge(✅ 完全機械,Layer 1) |
+| Worker 端 ambient `process.env.X` | 同上 fail with `Cannot find name 'process'`(✅ 完全機械,Layer 1) |
+| `src/shared/error-codes.ts` import `node:fs` | 兩 tsconfig 都 fail(✅ 完全機械,Layer 1 雙重保險) |
+| `src/shared/types.ts` `import type { D1Database }` | ESLint `no-restricted-imports` `src/shared/**/*.ts` block(union ban list)→ `pnpm lint` exit ≠ 0(✅ 完全機械,Layer 2,since v1.1.3) |
+| 新增 `@cloudflare/workers-types` 至 `tsconfig.node.json` `types` | typecheck 仍綠但 cross-runtime ban 破功;reviewer 駁回(advisory gate;屬 config 層 meta-violation,不在 import-rule 涵蓋範圍) |
 | `tsconfig.worker.json` `types` 漏掉 `@cloudflare/vitest-pool-workers/types` | `cloudflare:test` import fail at typecheck(per 設計源 §2.3 lesson 2);Worker pool tests 不可 typecheck |
 | `tsconfig.json` base 改開 `noEmit: false` | 編出 `dist/` 進 git 風險;reviewer 駁回(屬 build pipeline 變更,需 spec amendment) |
 
@@ -170,10 +170,10 @@ ESLint flat config 用此檔做 type-aware linting。本 feature **擴 include**
 > Node 端模組與 Worker 端模組之間的「跨 runtime import 違規」(Node 端 import D1/KV 型別、或 Worker 端 import `pg`/`redis`/`pino`/`prom-client`)在 PR merge 前 0 次發生 — 由 typecheck 機械擋下,而非 reviewer 人工抓。**生效時點**:此 SC 自 002-cloudflare-worker 落地(雙 tsconfig + Workers types 就位)後正式開始計算違規數。
 
 **本 feature 落地即啟動點**:從本 commit 起 SC-011 計算 active。違規數**目標 0**:
-- 對 **ambient + `node:*` 類違規**:每次 PR 過 mandatory gate `pnpm typecheck` 即機械擋下(zero false negative)
-- 對 **explicit named imports 類違規**:typecheck 為 advisory(per §3.1);最終靠 PR review 主動駁回 + 後續 ESLint `no-restricted-imports` follow-up(若量化發現違規率 > 0 即啟動,per `.docs/baseline-traceability-matrix.md` 補強路徑 §1)
+- 對 **ambient + `node:*` 類違規**:每次 PR 過 mandatory gate `pnpm typecheck` 即機械擋下(Layer 1,zero false negative)
+- 對 **explicit named imports 類違規**:每次 PR 過 mandatory gate `pnpm lint` 即機械擋下(Layer 2 ESLint `no-restricted-imports`,since v1.1.3)
 
-**Honest disclosure**:本契約之初版描述把 SC-011 機械強度過度承諾為「完全 typecheck 機械擋下」;T024-T026 verify 已修正為「partial mechanical」。對應 baseline-traceability-matrix.md 之 FR-022/SC-011 row 已更新標記。
+**Honest disclosure**:本契約之初版描述把 SC-011 機械強度過度承諾為「完全 typecheck 機械擋下」;T024-T026 verify 已修正為「partial mechanical」(僅 Layer 1)。**Update (v1.1.3)**:P2 commit `193a35e` 落地 ESLint `no-restricted-imports` follow-up,把 explicit named imports 類違規從 advisory 升為 mechanical(Layer 2);兩層合計 SC-011 已**完全機械化**,advisory gap 全關閉。對應 baseline-traceability-matrix.md 之 FR-022/SC-011 row 已更新為 ✅ fully mechanical。
 
 ## 7. 對 derivative 的 advisory
 
