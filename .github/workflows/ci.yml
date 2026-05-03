@@ -148,7 +148,9 @@ jobs:
           runCmd: |
             set -euo pipefail
             pnpm install --frozen-lockfile
-            pnpm exec wrangler deploy --dry-run
+            # wrangler v4 之 `--dry-run` 不寫 bundle 至 disk (只算 + print stats);
+            # 加 `--outdir` 強制寫出 .wrangler/dryrun/index.js 供 grep + size assertion
+            pnpm exec wrangler deploy --dry-run --outdir .wrangler/dryrun
 
             BUNDLE=.wrangler/dryrun/index.js
             if [ ! -f "$BUNDLE" ]; then
