@@ -15,131 +15,6 @@
 
 ---
 
-## References
-
-- [Anthropic Claude Code 官方 devcontainer feature](https://github.com/anthropics/devcontainer-features)
-- [Claude Code Legal & Compliance](https://code.claude.com/docs/en/legal-and-compliance)
-- [GitHub Spec-Kit](https://github.com/github/spec-kit) (SDD)
-- [obra/superpowers](https://github.com/obra/superpowers) (TDD)
-
----
-
-## CI status
-
-[![CI](https://github.com/anew7237/claude-superspec-worker/actions/workflows/ci.yml/badge.svg)](https://github.com/anew7237/claude-superspec-worker/actions/workflows/ci.yml)
-
-本 monorepo 內建 GitHub Actions CI workflow(`.github/workflows/ci.yml`)+ Dependabot 自動升版(`.github/dependabot.yml`)— **adopter fork 後自動啟用,不需在 GitHub UI 額外配置**(per `specs/003-ci-workflow/`)。
-
-### Jobs
-
-| Job                                | 性質         | 行為                                                                                                                                                                 |
-| ---------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`gates`**                        | mandatory ✅ | 在 dev container 內跑 `pnpm typecheck` / `pnpm lint` / `pnpm test:node` / `pnpm test:worker` 4 mandatory gates                                                       |
-| **`wrangler-bundle-check`**        | mandatory ✅ | `wrangler deploy --dry-run` + grep bundle 驗 0 個 Node-only module(pg/redis/pino/prom-client/@hono/node-server/node:fs/node:child_process)+ size assertion ≤ 100 KiB |
-| **`secret-scan`**                  | mandatory ✅ | gitleaks 掃 PR diff(PR 觸發)/ 全 git history(push to main 觸發);0 OAuth credentials in commits                                                                       |
-| **`spec-coverage-advisory`**       | advisory ⚠️  | PR 動 `src/**` 但無對應 `specs/NNN-*/` artifact → comment 提示(不阻擋 merge)                                                                                         |
-| **`toolchain-isolation-advisory`** | advisory ⚠️  | PR 同時動 `package.json` / `pnpm-lock.yaml` 與 `src/**` / `tests/**` → comment 提示「toolchain 變更建議獨立 PR」(不阻擋 merge)                                       |
-
-### 觸發條件
-
-- `pull_request` to main(任何 PR)
-- `push` to main(merge 後驗證)
-- `workflow_dispatch`(手動觸發備用)
-
-### Dependabot
-
-每週一掃 npm + GitHub Actions 升版;按 grouping rule 開 PR(`@cloudflare/*` 同組;`@vitest/*` 同組;`@typescript-eslint/*` 同組;其他 minor + patch 一組;major 各自獨立 PR)。Open PR limit:npm 5 / github-actions 3。
-
-### Branch protection 設定(adopter fork 後手動設,1 分鐘)
-
-CI workflow 跑出來後,Required status checks 才可被加入 branch protection 清單。至 `Settings → Branches → Add branch protection rule for main`:
-
-1. ✅ **Require a pull request before merging**
-2. ✅ **Require status checks to pass before merging**
-3. 在 `Required status checks` 搜尋並加入 **3 個 mandatory checks**:
-   - ✅ `gates`
-   - ✅ `wrangler-bundle-check`
-   - ✅ `secret-scan`
-4. ❌ **不要加** advisory checks(`spec-coverage-advisory`、`toolchain-isolation-advisory`)— 它們是提示,加進來會誤擋 PR
-5. (可選)✅ **Require branches to be up to date before merging**
-
-完成後任何 PR 須 3 mandatory check 全綠才可 merge。
-
-### 詳細文件
-
-- 完整 walkthrough(adopter / maintainer / reviewer × 7 sections + 6 negative test scenarios):[`specs/003-ci-workflow/quickstart.md`](specs/003-ci-workflow/quickstart.md)
-- Spec(13 FRs / 11 SCs / 4 user stories):[`specs/003-ci-workflow/spec.md`](specs/003-ci-workflow/spec.md)
-- 5 jobs 之契約(input / output / failure mode):[`specs/003-ci-workflow/contracts/ci-gates.md`](specs/003-ci-workflow/contracts/ci-gates.md)
-- Dependabot policy 契約:[`specs/003-ci-workflow/contracts/dependabot-policy.md`](specs/003-ci-workflow/contracts/dependabot-policy.md)
-
----
-
-## Baseline Spec & Contracts
-
-本專案最新一版 baseline spec 位於 `specs/001-superspec-baseline/`,
-描述此 template 對 adopter 的契約面與承諾。
-
-- [`specs/001-superspec-baseline/spec.md`](specs/001-superspec-baseline/spec.md) — 5 user stories / 22 FR / 11 SC / 12 edge cases / 3 clarifications
-- [`specs/001-superspec-baseline/plan.md`](specs/001-superspec-baseline/plan.md) — Technical Context、Constitution Check(對齊憲法 v1.0.0)、Project Structure
-- [`specs/001-superspec-baseline/research.md`](specs/001-superspec-baseline/research.md) — 3 clarification decisions + 22 FR gap analysis
-- [`specs/001-superspec-baseline/data-model.md`](specs/001-superspec-baseline/data-model.md) — 8 governance entities(Adopter / DevContainer Definition / Constitution / Feature Spec Artifact / Application Stack (Node) / Application Stack (Worker, Reserved) / Quality Gate / Toolchain Pin)
-- [`specs/001-superspec-baseline/contracts/`](specs/001-superspec-baseline/contracts/) — 5 contracts(CLI pipeline / devcontainer / observability / quality gates / sensitive material)
-- [`specs/001-superspec-baseline/quickstart.md`](specs/001-superspec-baseline/quickstart.md) — adopter walkthrough(乾淨機 → 跑通第一個 SDD pipeline)
-- [`specs/001-superspec-baseline/tasks.md`](specs/001-superspec-baseline/tasks.md) — 16 tasks across 8 phases(audit + companion-doc 補齊 + polish)
-
-> 後續 feature spec 將沿用此結構,於 `specs/<NNN-feature-name>/` 下產出。
-
-`specs/002-cloudflare-worker/` 為 002 dual-runtime feature(本 README 下一段 "Dual-Runtime
-(Node + Cloudflare Worker)" 介紹其 adopter-facing 面):
-
-- [`specs/002-cloudflare-worker/spec.md`](specs/002-cloudflare-worker/spec.md) — 5 user stories / 17 FR / 11 SC / 15 edge cases / 1 clarification
-- [`specs/002-cloudflare-worker/plan.md`](specs/002-cloudflare-worker/plan.md) — Worker runtime + monorepo dual-runtime refactor
-- [`specs/002-cloudflare-worker/contracts/`](specs/002-cloudflare-worker/contracts/) — 4 contracts(worker-routes / reverse-proxy / bindings / dual-tsconfig)
-- [`specs/002-cloudflare-worker/quickstart.md`](specs/002-cloudflare-worker/quickstart.md) — Mode A / B / C 完整 walkthrough(本 README 之 Mode 段為摘要版)
-
----
-
-## Dual-Runtime(Node + Cloudflare Worker)
-
-本 template 自 002 feature 起為 **dual-runtime monorepo** — 同一 repo 同時養 Node 端
-(Hono on Node.js,Postgres + Redis backed,既有 001 baseline)與 Cloudflare Worker 端
-(Hono on Workers runtime,D1 + KV bindings,002 新增)。兩 runtime 共用 `src/shared/**`
-之純 type / pure-function utility,但**不互相 import**(per dual-tsconfig contract,
-mechanical fence 由 `tsconfig.node.json` / `tsconfig.worker.json` `include` glob 提供)。
-
-Worker 端額外承載 **reverse proxy**(`ALL /app-api/*`)— passthrough 至 `UPSTREAM_URL`
-所指的 Node 端 origin,讓 adopter 可同一 entrypoint(Worker URL)同時 demo "Cloudflare-
-native(D1 / KV)" 與 "edge-then-origin(Postgres / Redis via Node)" 兩種架構。
-
-### 對照表 — 3 demo concept × 2 runtime
-
-| Demo concept        | Cloudflare-native(Worker side)                                              | Through Node proxy(Worker → Node)                                                                                       |
-| ------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **health**          | `GET /health` → 200 `{status:"ok",service:"worker",ts:<ISO>}`               | `GET /app-api/health` → 200 `{status:"ok",service:"nodejs"}`(Worker passthrough → Node)                                 |
-| **now**(timestamp)  | `GET /d1/now` → 200 `{source:"d1",now:<ts>}`(D1 `SELECT CURRENT_TIMESTAMP`) | `GET /app-api/now` → 200 `{source:"postgres",now:<ts>}`(Worker passthrough → Node `pool.query`)                         |
-| **echo**(key/value) | `GET /kv/echo?k=foo` → 200 `{source:"kv",key:"foo",value:<KV value>}`       | `GET /app-api/echo?k=foo` → 200 `{source:"redis",key:"foo",value:<redis value>}`(Worker passthrough → Node `redis.get`) |
-
-> 6 條 endpoint 在 Mode B(完整 demo)應全 200,byte-equivalent 於上表 body shape。
-> Mode A(quick demo)之 Through-Node-proxy 一行因無 Postgres/Redis backing 預期 5xx,
-> 屬預期落差。詳細契約見
-> [`specs/002-cloudflare-worker/contracts/worker-routes.md`](specs/002-cloudflare-worker/contracts/worker-routes.md)
-> 與
-> [`specs/002-cloudflare-worker/contracts/reverse-proxy.md`](specs/002-cloudflare-worker/contracts/reverse-proxy.md)。
-
-### 三種跑法概覽
-
-| Mode           | 場景                                           | 命令                                                  | 預算    | 備註                                                     |
-| -------------- | ---------------------------------------------- | ----------------------------------------------------- | ------- | -------------------------------------------------------- |
-| **A — quick**  | 本機 host process,只想看 Worker 邊本身         | `pnpm dev:node` + `pnpm dev:worker`                   | ~5 min  | `/app-api/now` `/app-api/echo` 預期 5xx(無 docker stack) |
-| **B — full**   | docker compose 帶 Postgres + Redis,看完整 6 條 | `make up` + `pnpm dev:worker`                         | ~10 min | 推薦的 canonical 路徑(per SC-011 實測 67 秒)             |
-| **C — deploy** | 首次部署上 Cloudflare edge                     | `wrangler login` → `d1/kv create` → `wrangler deploy` | ≤30 min | per FR-012 + SC-005                                      |
-
-詳細逐步見下方 "Running locally(Mode A / B)" 與 "First-time deploy(Mode C)";
-完整版逐行 curl + cleanup 見
-[`specs/002-cloudflare-worker/quickstart.md`](specs/002-cloudflare-worker/quickstart.md)。
-
----
-
 ## Running locally(Mode A / B)
 
 ### Mode A — quick demo(~5 min,host process only)
@@ -348,7 +223,7 @@ docker compose -f docker-compose.prod.yml up -d   # 部署(自行擴充的檔案
 > Worker 端與 `src/shared/**`(雙端共用之純 type / pure-function utility)由 002 feature
 > 落地,結構為 `src/worker/` + `tests/worker/` + `src/shared/`。設計脈絡見
 > [`.docs/20260430a-cloudflare-worker.md`](.docs/20260430a-cloudflare-worker.md);
-> adopter-facing 介紹見上方 "Dual-Runtime(Node + Cloudflare Worker)" 段。
+> adopter-facing 介紹見下方 "Dual-Runtime(Node + Cloudflare Worker)" 段。
 
 ```
 .
@@ -613,5 +488,130 @@ histogram_quantile(0.99, sum by(le, route) (rate(http_request_duration_seconds_b
 ```
 
 更多細節:`specs/NNN-feature-name/`(spec / contracts / quickstart)。
+
+---
+
+## References
+
+- [Anthropic Claude Code 官方 devcontainer feature](https://github.com/anthropics/devcontainer-features)
+- [Claude Code Legal & Compliance](https://code.claude.com/docs/en/legal-and-compliance)
+- [GitHub Spec-Kit](https://github.com/github/spec-kit) (SDD)
+- [obra/superpowers](https://github.com/obra/superpowers) (TDD)
+
+---
+
+## CI status
+
+[![CI](https://github.com/anew7237/claude-superspec-worker/actions/workflows/ci.yml/badge.svg)](https://github.com/anew7237/claude-superspec-worker/actions/workflows/ci.yml)
+
+本 monorepo 內建 GitHub Actions CI workflow(`.github/workflows/ci.yml`)+ Dependabot 自動升版(`.github/dependabot.yml`)— **adopter fork 後自動啟用,不需在 GitHub UI 額外配置**(per `specs/003-ci-workflow/`)。
+
+### Jobs
+
+| Job                                | 性質         | 行為                                                                                                                                                                 |
+| ---------------------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`gates`**                        | mandatory ✅ | 在 dev container 內跑 `pnpm typecheck` / `pnpm lint` / `pnpm test:node` / `pnpm test:worker` 4 mandatory gates                                                       |
+| **`wrangler-bundle-check`**        | mandatory ✅ | `wrangler deploy --dry-run` + grep bundle 驗 0 個 Node-only module(pg/redis/pino/prom-client/@hono/node-server/node:fs/node:child_process)+ size assertion ≤ 100 KiB |
+| **`secret-scan`**                  | mandatory ✅ | gitleaks 掃 PR diff(PR 觸發)/ 全 git history(push to main 觸發);0 OAuth credentials in commits                                                                       |
+| **`spec-coverage-advisory`**       | advisory ⚠️  | PR 動 `src/**` 但無對應 `specs/NNN-*/` artifact → comment 提示(不阻擋 merge)                                                                                         |
+| **`toolchain-isolation-advisory`** | advisory ⚠️  | PR 同時動 `package.json` / `pnpm-lock.yaml` 與 `src/**` / `tests/**` → comment 提示「toolchain 變更建議獨立 PR」(不阻擋 merge)                                       |
+
+### 觸發條件
+
+- `pull_request` to main(任何 PR)
+- `push` to main(merge 後驗證)
+- `workflow_dispatch`(手動觸發備用)
+
+### Dependabot
+
+每週一掃 npm + GitHub Actions 升版;按 grouping rule 開 PR(`@cloudflare/*` 同組;`@vitest/*` 同組;`@typescript-eslint/*` 同組;其他 minor + patch 一組;major 各自獨立 PR)。Open PR limit:npm 5 / github-actions 3。
+
+### Branch protection 設定(adopter fork 後手動設,1 分鐘)
+
+CI workflow 跑出來後,Required status checks 才可被加入 branch protection 清單。至 `Settings → Branches → Add branch protection rule for main`:
+
+1. ✅ **Require a pull request before merging**
+2. ✅ **Require status checks to pass before merging**
+3. 在 `Required status checks` 搜尋並加入 **3 個 mandatory checks**:
+   - ✅ `gates`
+   - ✅ `wrangler-bundle-check`
+   - ✅ `secret-scan`
+4. ❌ **不要加** advisory checks(`spec-coverage-advisory`、`toolchain-isolation-advisory`)— 它們是提示,加進來會誤擋 PR
+5. (可選)✅ **Require branches to be up to date before merging**
+
+完成後任何 PR 須 3 mandatory check 全綠才可 merge。
+
+### 詳細文件
+
+- 完整 walkthrough(adopter / maintainer / reviewer × 7 sections + 6 negative test scenarios):[`specs/003-ci-workflow/quickstart.md`](specs/003-ci-workflow/quickstart.md)
+- Spec(13 FRs / 11 SCs / 4 user stories):[`specs/003-ci-workflow/spec.md`](specs/003-ci-workflow/spec.md)
+- 5 jobs 之契約(input / output / failure mode):[`specs/003-ci-workflow/contracts/ci-gates.md`](specs/003-ci-workflow/contracts/ci-gates.md)
+- Dependabot policy 契約:[`specs/003-ci-workflow/contracts/dependabot-policy.md`](specs/003-ci-workflow/contracts/dependabot-policy.md)
+
+---
+
+## Baseline Spec & Contracts
+
+本專案最新一版 baseline spec 位於 `specs/001-superspec-baseline/`,
+描述此 template 對 adopter 的契約面與承諾。
+
+- [`specs/001-superspec-baseline/spec.md`](specs/001-superspec-baseline/spec.md) — 5 user stories / 22 FR / 11 SC / 12 edge cases / 3 clarifications
+- [`specs/001-superspec-baseline/plan.md`](specs/001-superspec-baseline/plan.md) — Technical Context、Constitution Check(對齊憲法 v1.0.0)、Project Structure
+- [`specs/001-superspec-baseline/research.md`](specs/001-superspec-baseline/research.md) — 3 clarification decisions + 22 FR gap analysis
+- [`specs/001-superspec-baseline/data-model.md`](specs/001-superspec-baseline/data-model.md) — 8 governance entities(Adopter / DevContainer Definition / Constitution / Feature Spec Artifact / Application Stack (Node) / Application Stack (Worker, Reserved) / Quality Gate / Toolchain Pin)
+- [`specs/001-superspec-baseline/contracts/`](specs/001-superspec-baseline/contracts/) — 5 contracts(CLI pipeline / devcontainer / observability / quality gates / sensitive material)
+- [`specs/001-superspec-baseline/quickstart.md`](specs/001-superspec-baseline/quickstart.md) — adopter walkthrough(乾淨機 → 跑通第一個 SDD pipeline)
+- [`specs/001-superspec-baseline/tasks.md`](specs/001-superspec-baseline/tasks.md) — 16 tasks across 8 phases(audit + companion-doc 補齊 + polish)
+
+> 後續 feature spec 將沿用此結構,於 `specs/<NNN-feature-name>/` 下產出。
+
+`specs/002-cloudflare-worker/` 為 002 dual-runtime feature(本 README 下一段 "Dual-Runtime
+(Node + Cloudflare Worker)" 介紹其 adopter-facing 面):
+
+- [`specs/002-cloudflare-worker/spec.md`](specs/002-cloudflare-worker/spec.md) — 5 user stories / 17 FR / 11 SC / 15 edge cases / 1 clarification
+- [`specs/002-cloudflare-worker/plan.md`](specs/002-cloudflare-worker/plan.md) — Worker runtime + monorepo dual-runtime refactor
+- [`specs/002-cloudflare-worker/contracts/`](specs/002-cloudflare-worker/contracts/) — 4 contracts(worker-routes / reverse-proxy / bindings / dual-tsconfig)
+- [`specs/002-cloudflare-worker/quickstart.md`](specs/002-cloudflare-worker/quickstart.md) — Mode A / B / C 完整 walkthrough(本 README 之 Mode 段為摘要版)
+
+---
+
+## Dual-Runtime(Node + Cloudflare Worker)
+
+本 template 自 002 feature 起為 **dual-runtime monorepo** — 同一 repo 同時養 Node 端
+(Hono on Node.js,Postgres + Redis backed,既有 001 baseline)與 Cloudflare Worker 端
+(Hono on Workers runtime,D1 + KV bindings,002 新增)。兩 runtime 共用 `src/shared/**`
+之純 type / pure-function utility,但**不互相 import**(per dual-tsconfig contract,
+mechanical fence 由 `tsconfig.node.json` / `tsconfig.worker.json` `include` glob 提供)。
+
+Worker 端額外承載 **reverse proxy**(`ALL /app-api/*`)— passthrough 至 `UPSTREAM_URL`
+所指的 Node 端 origin,讓 adopter 可同一 entrypoint(Worker URL)同時 demo "Cloudflare-
+native(D1 / KV)" 與 "edge-then-origin(Postgres / Redis via Node)" 兩種架構。
+
+### 對照表 — 3 demo concept × 2 runtime
+
+| Demo concept        | Cloudflare-native(Worker side)                                              | Through Node proxy(Worker → Node)                                                                                       |
+| ------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **health**          | `GET /health` → 200 `{status:"ok",service:"worker",ts:<ISO>}`               | `GET /app-api/health` → 200 `{status:"ok",service:"nodejs"}`(Worker passthrough → Node)                                 |
+| **now**(timestamp)  | `GET /d1/now` → 200 `{source:"d1",now:<ts>}`(D1 `SELECT CURRENT_TIMESTAMP`) | `GET /app-api/now` → 200 `{source:"postgres",now:<ts>}`(Worker passthrough → Node `pool.query`)                         |
+| **echo**(key/value) | `GET /kv/echo?k=foo` → 200 `{source:"kv",key:"foo",value:<KV value>}`       | `GET /app-api/echo?k=foo` → 200 `{source:"redis",key:"foo",value:<redis value>}`(Worker passthrough → Node `redis.get`) |
+
+> 6 條 endpoint 在 Mode B(完整 demo)應全 200,byte-equivalent 於上表 body shape。
+> Mode A(quick demo)之 Through-Node-proxy 一行因無 Postgres/Redis backing 預期 5xx,
+> 屬預期落差。詳細契約見
+> [`specs/002-cloudflare-worker/contracts/worker-routes.md`](specs/002-cloudflare-worker/contracts/worker-routes.md)
+> 與
+> [`specs/002-cloudflare-worker/contracts/reverse-proxy.md`](specs/002-cloudflare-worker/contracts/reverse-proxy.md)。
+
+### 三種跑法概覽
+
+| Mode           | 場景                                           | 命令                                                  | 預算    | 備註                                                     |
+| -------------- | ---------------------------------------------- | ----------------------------------------------------- | ------- | -------------------------------------------------------- |
+| **A — quick**  | 本機 host process,只想看 Worker 邊本身         | `pnpm dev:node` + `pnpm dev:worker`                   | ~5 min  | `/app-api/now` `/app-api/echo` 預期 5xx(無 docker stack) |
+| **B — full**   | docker compose 帶 Postgres + Redis,看完整 6 條 | `make up` + `pnpm dev:worker`                         | ~10 min | 推薦的 canonical 路徑(per SC-011 實測 67 秒)             |
+| **C — deploy** | 首次部署上 Cloudflare edge                     | `wrangler login` → `d1/kv create` → `wrangler deploy` | ≤30 min | per FR-012 + SC-005                                      |
+
+詳細逐步見上方 "Running locally(Mode A / B)" 與 "First-time deploy(Mode C)";
+完整版逐行 curl + cleanup 見
+[`specs/002-cloudflare-worker/quickstart.md`](specs/002-cloudflare-worker/quickstart.md)。
 
 ---
