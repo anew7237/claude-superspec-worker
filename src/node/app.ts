@@ -79,3 +79,8 @@ app.get('/metrics', async (c) => {
   c.header('Content-Type', register.contentType);
   return c.body(await register.metrics());
 });
+
+// T016 negative test (003-ci-workflow per quickstart §5.6): same PR touches
+// BOTH package.json + pnpm-lock.yaml AND src/**. Should trigger
+// toolchain-isolation-advisory comment (advisory, does NOT block merge).
+// PR will be closed without merge.
