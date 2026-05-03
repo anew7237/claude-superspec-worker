@@ -59,7 +59,7 @@ jobs:
       # Key: lockfile hash + runner OS;restore-keys fallback for stale lockfile
       # ───────────────────────────────────────────────────────────────────
       - name: Cache pnpm store
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.local/share/pnpm/store
           key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
@@ -70,7 +70,7 @@ jobs:
       # Cache node_modules (per research §3 + ci-gates.md §2.1 step 3)
       # ───────────────────────────────────────────────────────────────────
       - name: Cache node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: node_modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
@@ -121,7 +121,7 @@ jobs:
           [ -f ~/.claude.json ] || echo '{}' > ~/.claude.json
 
       - name: Cache pnpm store
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.local/share/pnpm/store
           key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
@@ -129,7 +129,7 @@ jobs:
             pnpm-store-${{ runner.os }}-
 
       - name: Cache node_modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: node_modules
           key: node_modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
