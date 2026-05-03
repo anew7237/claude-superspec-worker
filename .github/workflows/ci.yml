@@ -88,8 +88,12 @@ jobs:
           imageName: ghcr.io/${{ github.repository }}/dev-container
           cacheFrom: ghcr.io/${{ github.repository }}/dev-container
           push: never # 不 push image to GHCR (avoids needing GITHUB_TOKEN write perm)
+          # devcontainers/ci@v0.3 不自動 propagate host env vars 進 container,
+          # 須顯式 export CI=true 讓 vitest sc007 之 describe.skipIf(process.env.CI === 'true')
+          # 在 CI runner 內生效 (per fix/sc007-ci-threshold PR #22 commit ec725df)
           runCmd: |
             set -euo pipefail
+            export CI=true
             pnpm install --frozen-lockfile
             pnpm typecheck
             pnpm lint
