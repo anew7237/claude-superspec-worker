@@ -49,16 +49,21 @@
 
 ## §2 CI run history
 
-| Run ID                                                                                      | Commit  | Trigger                                              | Duration            | gates                 | wrangler-bundle-check                                                                    | secret-scan                    | spec-cov-adv                            | toolchain-iso-adv                       | 結論                                                                                                   |
-| ------------------------------------------------------------------------------------------- | ------- | ---------------------------------------------------- | ------------------- | --------------------- | ---------------------------------------------------------------------------------------- | ------------------------------ | --------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| [25285300261](https://github.com/anew7237/claude-superspec-worker/actions/runs/25285300261) | c68fe04 | PR #21 open                                          | 2:30                | ❌ sc007 fail         | n/a                                                                                      | n/a                            | n/a                                     | n/a                                     | failure(揭出 sc007 perf jitter)                                                                        |
-| [25285569795](https://github.com/anew7237/claude-superspec-worker/actions/runs/25285569795) | 984b0f6 | rebase + force-push(post fix PR #22 merge)           | 2:25                | ✅ luck pass          | n/a                                                                                      | n/a                            | n/a                                     | n/a                                     | success(sc007 lucky pass,實 skip 未生效)                                                               |
-| [25285717269](https://github.com/anew7237/claude-superspec-worker/actions/runs/25285717269) | 58241b6 | T005+T006 push                                       | 2:03                | ✅ luck pass          | ❌ wrangler dryrun no-write                                                              | ✅                             | n/a                                     | n/a                                     | failure(揭出 wrangler v4 --outdir 需要)                                                                |
-| [25285852670](https://github.com/anew7237/claude-superspec-worker/actions/runs/25285852670) | 8f9297f | T005-fix + T010 + T012 push                          | 1:56                | ❌ sc007 真 fail      | ✅(--outdir fix 生效)                                                                    | ✅                             | n/a                                     | n/a                                     | failure(sc007 luck 用完,confirm CI=true 未 propagate)                                                  |
-| [25286084697](https://github.com/anew7237/claude-superspec-worker/actions/runs/25286084697) | fccb598 | T004 CI=true fix + T013+T015 push                    | ~3m                 | ✅                    | ✅                                                                                       | ✅                             | ✅ skip(doc-only)                       | ✅ skip(doc-only)                       | **✅ ALL GREEN**                                                                                       |
-| [25286452585](https://github.com/anew7237/claude-superspec-worker/actions/runs/25286452585) | 3db919a | **T008 negative test PR #24 (bundle bloat)**         | ~3m                 | ❌ fail               | **❌ fail** (`BUNDLE SIZE 313367 bytes (306 KiB) exceeds budget 102400 bytes (100 KiB)`) | ✅                             | ✅                                      | ✅                                      | **expected ❌ — VERIFIED**                                                                             |
-| [25286454090](https://github.com/anew7237/claude-superspec-worker/actions/runs/25286454090) | f46f65c | **T009 negative test PR #25 (fake secret)**          | ~3m                 | ✅                    | ✅                                                                                       | **❌ fail** (`leaks found: 1`) | ✅                                      | ✅                                      | **expected ❌ — VERIFIED**                                                                             |
-| [25286450598](https://github.com/anew7237/claude-superspec-worker/actions/runs/25286450598) | b77e580 | **T007 negative test PR #23 (cross-runtime import)** | 20m (gates timeout) | ⏱ cancelled (timeout) | **❌ fail** (caught pg import in bundle)                                                 | ✅                             | ✅ (false-negative per stacked-context) | ✅ (false-negative per stacked-context) | **expected ❌ — VERIFIED with caveat** (gates 卡住 timeout 但 wrangler-bundle-check backup layer 抓到) |
+| Run ID                                                                                      | Commit  | Trigger                                                   | Duration            | gates                 | wrangler-bundle-check                                                                    | secret-scan                    | spec-cov-adv                                                   | toolchain-iso-adv                                          | 結論                                                                                                   |
+| ------------------------------------------------------------------------------------------- | ------- | --------------------------------------------------------- | ------------------- | --------------------- | ---------------------------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| [25285300261](https://github.com/anew7237/claude-superspec-worker/actions/runs/25285300261) | c68fe04 | PR #21 open                                               | 2:30                | ❌ sc007 fail         | n/a                                                                                      | n/a                            | n/a                                                            | n/a                                                        | failure(揭出 sc007 perf jitter)                                                                        |
+| [25285569795](https://github.com/anew7237/claude-superspec-worker/actions/runs/25285569795) | 984b0f6 | rebase + force-push(post fix PR #22 merge)                | 2:25                | ✅ luck pass          | n/a                                                                                      | n/a                            | n/a                                                            | n/a                                                        | success(sc007 lucky pass,實 skip 未生效)                                                               |
+| [25285717269](https://github.com/anew7237/claude-superspec-worker/actions/runs/25285717269) | 58241b6 | T005+T006 push                                            | 2:03                | ✅ luck pass          | ❌ wrangler dryrun no-write                                                              | ✅                             | n/a                                                            | n/a                                                        | failure(揭出 wrangler v4 --outdir 需要)                                                                |
+| [25285852670](https://github.com/anew7237/claude-superspec-worker/actions/runs/25285852670) | 8f9297f | T005-fix + T010 + T012 push                               | 1:56                | ❌ sc007 真 fail      | ✅(--outdir fix 生效)                                                                    | ✅                             | n/a                                                            | n/a                                                        | failure(sc007 luck 用完,confirm CI=true 未 propagate)                                                  |
+| [25286084697](https://github.com/anew7237/claude-superspec-worker/actions/runs/25286084697) | fccb598 | T004 CI=true fix + T013+T015 push                         | ~3m                 | ✅                    | ✅                                                                                       | ✅                             | ✅ skip(doc-only)                                              | ✅ skip(doc-only)                                          | **✅ ALL GREEN**                                                                                       |
+| [25286452585](https://github.com/anew7237/claude-superspec-worker/actions/runs/25286452585) | 3db919a | **T008 negative test PR #24 (bundle bloat)**              | ~3m                 | ❌ fail               | **❌ fail** (`BUNDLE SIZE 313367 bytes (306 KiB) exceeds budget 102400 bytes (100 KiB)`) | ✅                             | ✅                                                             | ✅                                                         | **expected ❌ — VERIFIED**                                                                             |
+| [25286454090](https://github.com/anew7237/claude-superspec-worker/actions/runs/25286454090) | f46f65c | **T009 negative test PR #25 (fake secret)**               | ~3m                 | ✅                    | ✅                                                                                       | **❌ fail** (`leaks found: 1`) | ✅                                                             | ✅                                                         | **expected ❌ — VERIFIED**                                                                             |
+| [25286450598](https://github.com/anew7237/claude-superspec-worker/actions/runs/25286450598) | b77e580 | **T007 negative test PR #23 (cross-runtime import)**      | 20m (gates timeout) | ⏱ cancelled (timeout) | **❌ fail** (caught pg import in bundle)                                                 | ✅                             | ✅ (false-negative per stacked-context)                        | ✅ (false-negative per stacked-context)                    | **expected ❌ — VERIFIED with caveat** (gates 卡住 timeout 但 wrangler-bundle-check backup layer 抓到) |
+| [25286994041](https://github.com/anew7237/claude-superspec-worker/actions/runs/25286994041) | 3ab7e7f | post T018 finalize push (final 003 PR commit)             | ~3m                 | ✅                    | ✅                                                                                       | ✅                             | ✅ skip(doc-only)                                              | ✅ skip(doc-only)                                          | **✅ ALL GREEN — final pre-merge**                                                                     |
+| 003 PR #21 MERGED to main 2026-05-03 18:25 UTC (merge commit 39b51ca)                       |         |                                                           |                     |                       |                                                                                          |                                |                                                                |                                                            |                                                                                                        |
+| [25287301382](https://github.com/anew7237/claude-superspec-worker/actions/runs/25287301382) | e84777a | **issue #33 verify — T014 (PR #39, src-only post-merge)** | ~3m                 | ✅                    | ✅                                                                                       | ✅                             | **✅ posted comment** (1 advisory comment fired correctly)     | n/a                                                        | **VERIFIED**                                                                                           |
+| [25287301908](https://github.com/anew7237/claude-superspec-worker/actions/runs/25287301908) | 0402082 | **issue #33 verify — T016 (PR #40, deps+src post-merge)** | ~3m                 | ✅                    | ✅                                                                                       | ✅                             | ✅ also posted (correct per design — src+no-spec also matches) | **✅ posted comment** (1 advisory comment fired correctly) | **VERIFIED**                                                                                           |
+| (8 Dependabot PRs #28-#38)                                                                  | various | **issue #35 verify — Dependabot first scan post-merge**   | < 5m each           | ✅                    | ✅                                                                                       | ✅                             | n/a (auto Dependabot)                                          | n/a                                                        | **VERIFIED — grouping rules + commit convention work**                                                 |
 
 **Pattern**:
 
@@ -165,37 +170,36 @@ gh pr create --title "[negative test 4] fake secret in commit → expect secret-
 
 ### T014 — Scenario 5: src no spec → spec-coverage-advisory comment
 
-**Status**: ⚠ **DEFERRED to post-003-merge follow-up** (PR #26 closed)
+**Status**: ✅ **VERIFIED via clean post-merge PR #39** (issue #33 closed,2026-05-04)
 
-**Reason**: advisory job 用 `pulls.listFiles` 取 PR 之 entire diff(vs base);若 negative branch base on 003-ci-workflow,該 PR 不 trigger CI(per spec FR-002 trigger 限定 main);若 retarget 到 main,則 PR diff 包含 003 整段 specs/ 變更 → spec-coverage-advisory rule 「src touched AND specs NOT touched」會 false-negative(advisory 看到 specs/ 即不 fire)。
+**Initial deferral context** (PR #26 closed):advisory job 用 `pulls.listFiles` 取 PR 之 entire diff(vs base);若 negative branch base on 003-ci-workflow,該 PR 不 trigger CI(per spec FR-002 trigger 限定 main);若 retarget 到 main,則 PR diff 包含 003 整段 specs/ 變更 → spec-coverage-advisory rule 「src touched AND specs NOT touched」會 false-negative。
 
-**Real verification path**:003-ci-workflow merge 進 main 後,另開單純 src-only PR(eg. trivial src/node/app.ts comment 變更,不動 specs/),確認 spec-coverage-advisory 真實 fire comment。Track in §5 follow-ups。
+**Real verification (post-003-merge)**:`verify/spec-coverage-advisory` branch (commit `e84777a`,base = main)即「src/node/app.ts 加 4 行 comment,不動 specs/」之乾淨 PR。Run [25287301382](https://github.com/anew7237/claude-superspec-worker/actions/runs/25287301382)on PR #39:
 
-**操作**:
+- 3 mandatory checks all ✅
+- **`spec-coverage-advisory` ✅ posted comment**:「⚠ Advisory: spec coverage … This PR modifies `src/**` but no `specs/NNN-*/` artifact was added or updated …」
+- `toolchain-isolation-advisory` 不 fire(無 deps 變更)
+- PR mergeable(advisory not blocking,per design)
 
-```bash
-git checkout -b negative-test/scenario-5-src-no-spec 003-ci-workflow
-echo "// trivial change" >> src/node/app.ts
-git commit -am "negative test: src change without spec (should trigger advisory)"
-git push -u origin negative-test/scenario-5-src-no-spec
-gh pr create --title "[negative test 5] src without spec → expect advisory comment" --base 003-ci-workflow
-```
-
-**Expected**: spec-coverage-advisory job comment 提示「未偵測到對應 specs/ 目錄」;mandatory 仍綠;PR 可 merge(advisory 不阻擋)
-
-**Result**: TODO
-
-**Cleanup**: close PR
+**Cleanup**: PR #39 closed(verification artifact only)。
 
 ---
 
 ### T016 — Scenario 6: deps + src → toolchain-isolation-advisory comment
 
-**Status**: ⚠ **DEFERRED to post-003-merge follow-up** (PR #27 closed)
+**Status**: ✅ **VERIFIED via clean post-merge PR #40** (issue #33 closed,2026-05-04)
 
-**Reason**: 同 T014 — advisory job 在 stacked-on-003 context 下會 conflate 003 之 wrangler v3→v4 deps changes 與 negative-test deps change,advisory comment 行為混淆。
+**Initial deferral context** (PR #27 closed):同 T014 — advisory job 在 stacked-on-003 context 下會 conflate 003 之 wrangler v3→v4 deps changes 與 negative-test deps change,行為混淆。
 
-**Real verification path**:003-ci-workflow merge 進 main 後,另開單純 deps + src PR(eg. pnpm add 1 dep + 1 行 src 變更),確認 toolchain-isolation-advisory 真實 fire comment。Track in §5 follow-ups。
+**Real verification (post-003-merge)**:`verify/toolchain-isolation-advisory` branch (commit `0402082`,base = main)即「pnpm add -D ms + src/node/app.ts 加 4 行 comment」之乾淨 PR。Run [25287301908](https://github.com/anew7237/claude-superspec-worker/actions/runs/25287301908) on PR #40:
+
+- 3 mandatory checks all ✅
+- **`toolchain-isolation-advisory` ✅ posted comment**:「⚠ Advisory: toolchain isolation … This PR modifies BOTH toolchain (`package.json` / `pnpm-lock.yaml`) AND application code (`src/**` / `tests/**`) …」
+- **bonus**:`spec-coverage-advisory` 也 fire(因 PR 動 src/ + 不動 specs/ 同樣命中其 trigger,屬 design-correct,non-bug)
+- 2 comments total on PR(both advisories)
+- PR mergeable(advisory not blocking,per design)
+
+**Cleanup**: PR #40 closed(verification artifact only)。
 
 **操作**:
 
@@ -243,38 +247,39 @@ T022 final pre-merge sanity(2026-05-04 在 WSL2 dev container 內跑):
 | `pnpm test:worker`           | 31.3s     | ✅ 5 files / 18 tests pass                                |
 | `pnpm exec prettier --check` | (fast)    | ✅ All matched files use Prettier code style              |
 
-| Spec FR / SC                                                                     | Mechanization status | Evidence                                                      |
-| -------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------- |
-| 003 FR-001 (workflow at .github/workflows/ci.yml)                                | ✅ active            | file 存在 + run 25286084697                                   |
-| 003 FR-002 (3 trigger PR/push/dispatch)                                          | ✅ active            | ci.yml line 16-21                                             |
-| 003 FR-003 (3 mandatory check)                                                   | ✅ active            | run 25286084697 之 5 jobs 全綠                                |
-| 003 FR-004 (dev container in CI)                                                 | ✅ verified          | devcontainers/ci@v0.3 used + run success                      |
-| 003 FR-005 (cache layer)                                                         | ✅ active            | cache hit 在 run 25286084697(~3 min total wall time)          |
-| 003 FR-006/FR-007 (Dependabot)                                                   | ✅ active            | dependabot.yml pushed + parse-error-free                      |
-| 003 FR-008 (2 advisory job)                                                      | ✅ active            | run 25286084697 之 doc-only 正確 skip                         |
-| 003 FR-009 (advisory exclude doc-only)                                           | ✅ verified          | T017 by 003 PR self-test (0 comments)                         |
-| 003 FR-010 (no production credentials)                                           | ✅ verified          | ci.yml grep 無 wrangler secret / Cloudflare token             |
-| 003 FR-011 (failure 訊息 reviewer 直觀)                                          | ✅ verified          | T008/T009 fail messages 含明確 reason                         |
-| 003 FR-012 (README §CI status)                                                   | ✅ active            | README.md:27-73                                               |
-| 003 FR-013 (baseline 5 SC/FR mechanized)                                         | ✅ done              | per `.docs/baseline-traceability-matrix.md` row updates(T019) |
-| 003 SC-001 (cache hit ≤ 5 min)                                                   | ✅ verified          | run 25286084697 < 5 min                                       |
-| 003 SC-002 (CI ↔ local 100% 等價)                                                | ✅ verified          | local sanity (T022) 與 CI run 25286084697 結果一致            |
-| 003 SC-003 (跨 runtime import lint 失敗率 100%)                                  | ⏳ T007 in flight    | (TODO 等 T007 verify)                                         |
-| 003 SC-004 (Worker bundle 含 forbidden module wrangler-bundle-check 失敗率 100%) | ✅ verified          | T008 ❌ as expected                                           |
-| 003 SC-005 (bundle size > 100 KiB 失敗率 100%)                                   | ✅ verified          | T008 ❌ as expected                                           |
-| 003 SC-006 (含 secret 失敗率 100%)                                               | ✅ verified          | T009 ❌ as expected                                           |
-| 003 SC-007 (Dependabot PR 跑完 ≤ 15 min)                                         | ⏳ deferred          | 等下週一 2026-05-04 第一次 weekly scan(若有可升 dep)          |
-| 003 SC-008 (fork ≤ 5 min CI 自動跑)                                              | ✅ active            | workflow 自動偵測                                             |
-| 003 SC-009 (PR 動 ci.yml 自身 self-test)                                         | ✅ verified          | run 25285852670 等 multiple runs 證明                         |
-| 003 SC-010 (gitleaks ≥ 99% maintain rate)                                        | ✅ active            | 採 gitleaks 預設規則                                          |
-| 003 SC-011 (baseline 機械化升級)                                                 | ✅ done              | per T019 + T020 evidence                                      |
+| Spec FR / SC                                                                     | Mechanization status | Evidence                                                                                                              |
+| -------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 003 FR-001 (workflow at .github/workflows/ci.yml)                                | ✅ active            | file 存在 + run 25286084697                                                                                           |
+| 003 FR-002 (3 trigger PR/push/dispatch)                                          | ✅ active            | ci.yml line 16-21                                                                                                     |
+| 003 FR-003 (3 mandatory check)                                                   | ✅ active            | run 25286084697 之 5 jobs 全綠                                                                                        |
+| 003 FR-004 (dev container in CI)                                                 | ✅ verified          | devcontainers/ci@v0.3 used + run success                                                                              |
+| 003 FR-005 (cache layer)                                                         | ✅ active            | cache hit 在 run 25286084697(~3 min total wall time)                                                                  |
+| 003 FR-006/FR-007 (Dependabot)                                                   | ✅ active            | dependabot.yml pushed + parse-error-free                                                                              |
+| 003 FR-008 (2 advisory job)                                                      | ✅ active            | run 25286084697 之 doc-only 正確 skip                                                                                 |
+| 003 FR-009 (advisory exclude doc-only)                                           | ✅ verified          | T017 by 003 PR self-test (0 comments)                                                                                 |
+| 003 FR-010 (no production credentials)                                           | ✅ verified          | ci.yml grep 無 wrangler secret / Cloudflare token                                                                     |
+| 003 FR-011 (failure 訊息 reviewer 直觀)                                          | ✅ verified          | T008/T009 fail messages 含明確 reason                                                                                 |
+| 003 FR-012 (README §CI status)                                                   | ✅ active            | README.md:27-73                                                                                                       |
+| 003 FR-013 (baseline 5 SC/FR mechanized)                                         | ✅ done              | per `.docs/baseline-traceability-matrix.md` row updates(T019)                                                         |
+| 003 SC-001 (cache hit ≤ 5 min)                                                   | ✅ verified          | run 25286084697 < 5 min                                                                                               |
+| 003 SC-002 (CI ↔ local 100% 等價)                                                | ✅ verified          | local sanity (T022) 與 CI run 25286084697 結果一致                                                                    |
+| 003 SC-003 (跨 runtime import lint 失敗率 100%)                                  | ✅ verified          | T007 wrangler-bundle-check ❌ (multi-layer FR-022 enforcement)                                                        |
+| 003 SC-004 (Worker bundle 含 forbidden module wrangler-bundle-check 失敗率 100%) | ✅ verified          | T008 ❌ as expected                                                                                                   |
+| 003 SC-005 (bundle size > 100 KiB 失敗率 100%)                                   | ✅ verified          | T008 ❌ as expected                                                                                                   |
+| 003 SC-006 (含 secret 失敗率 100%)                                               | ✅ verified          | T009 ❌ as expected                                                                                                   |
+| 003 SC-007 (Dependabot PR 跑完 ≤ 15 min)                                         | ✅ verified          | Dependabot 自動開 8 PRs (#28-#38) on first scan post-merge;all CI runs completed within budget(per issue #35 closing) |
+| 003 SC-008 (fork ≤ 5 min CI 自動跑)                                              | ✅ active            | workflow 自動偵測                                                                                                     |
+| 003 SC-009 (PR 動 ci.yml 自身 self-test)                                         | ✅ verified          | run 25285852670 等 multiple runs 證明                                                                                 |
+| 003 SC-010 (gitleaks ≥ 99% maintain rate)                                        | ✅ active            | 採 gitleaks 預設規則                                                                                                  |
+| 003 SC-011 (baseline 機械化升級)                                                 | ✅ done              | per T019 + T020 evidence                                                                                              |
 
 ---
 
 ## §5 Known limitations / follow-ups
 
-1. **macOS runner 不在 CI**(per spec assumption + Q6 Clarification)— 跨 platform parity 仍走人工 `.docs/parity-validation.md`
-2. **Dependabot 首次掃**為 2026-05-04 週一,實際 PR 開出與否視 dep 是否有可升;weekly 觀察點為 follow-up monitoring task
+1. **macOS runner 不在 CI**(per spec assumption + Q6 Clarification)— 跨 platform parity 仍走人工 `.docs/parity-validation.md`(issue #34 opt-in tracking)
+2. ~~**Dependabot 首次掃**為 2026-05-04 週一~~ → ✅ **VERIFIED 2026-05-04**:Dependabot 在 003-ci-workflow merge 後立即開 8 PRs(#28-#38),grouping rules 全部正確生效(`cloudflare-ecosystem` / `typescript-eslint` / `node-deps-minor-patch` 各組之 minor/patch + major 各自獨立 PR),CI runs 全綠(SC-007 ≤ 15 min budget verified)。Issue #35 closed。
 3. **Branch protection rules** 屬 GitHub repo settings,本 feature 不自動配置;adopter 須手動設(per quickstart §1 Step 4)
 4. **Advisory comment 不去重**(per design + research §6)— 每次 push 重 fire;若噪音過大屬未來 chore PR(用 marker idempotent comment)
 5. **`tests/node/http-metrics.sc007.test.ts` 在 CI 永遠 skip**(per fix PR #22 + T004 export CI=true)— 本機 (no CI env) 仍 enforce 原 threshold;perf gate 完整性保留於 dev 環境
+6. ~~**T014/T016 advisory negative tests deferred**~~ → ✅ **VERIFIED 2026-05-04** via PRs #39 (T014) + #40 (T016) clean post-merge tests:both advisory jobs fired comments as expected;mandatory checks all green;PRs closed as artifact。Issue #33 closed。
