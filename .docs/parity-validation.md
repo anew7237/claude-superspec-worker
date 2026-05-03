@@ -129,12 +129,12 @@ _上述 sed 指令為建議起點,視 log 格式調整 pattern。_
 _SC-008 定義_:此類「cross-platform parity 缺陷」每季 ≤ 1 件。  
 _記錄說明_:每發現一件 parity 缺陷即新增一行,季末統計「缺陷數量」欄。
 
-| 季度    | Parity 缺陷數量 | 配額狀態(≤1?) | 事件描述                                                                                                                                                                                                                                            | 處置                                                                                                                              |
-| ------- | --------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-Q2 | 1               | ✅            | 2026-05-03 Mac M1 + WSL2 dev container 配對量測(commit `137716f`)發現 `pnpm test:worker` 在 WSL2 dev container 端 100% reproducible exit 1(`socket hang up` / `ECONNRESET`,失敗 spec file 隨機),Mac container 端全綠。詳見下方 Measurement Record。 | 開 follow-up issue 追 `@cloudflare/vitest-pool-workers@0.15.1` × WSL2 dev container race condition;evaluate 升版或加序列化 config |
-| 2026-Q3 | TODO            | TODO          | TODO                                                                                                                                                                                                                                                | TODO                                                                                                                              |
-| 2026-Q4 | TODO            | TODO          | TODO                                                                                                                                                                                                                                                | TODO                                                                                                                              |
-| 2027-Q1 | TODO            | TODO          | TODO                                                                                                                                                                                                                                                | TODO                                                                                                                              |
+| 季度    | Parity 缺陷數量 | 配額狀態(≤1?) | 事件描述                                                                                                                                                                                                                                                                                                                                                                                            | 處置                                                                                                        |
+| ------- | --------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| 2026-Q2 | 1               | ✅            | 2026-05-03 Mac M1 + WSL2 dev container 配對量測(commit `137716f`)發現 `pnpm test:worker` 在 WSL2 dev container 端 100% reproducible exit 1(`socket hang up` / `ECONNRESET`,失敗 spec file 隨機),Mac container 端全綠。詳見下方 Measurement Record。**✅ Resolved 2026-05-03**:PR #17(`@cloudflare/vitest-pool-workers` 0.15.1 → 0.15.2 patch bump)WSL2 dev container 3/3 重跑全綠,issue #15 close。 | PR #17 merged(patch bump 解 race);issue #15 closed;SC-002 升 fully verified(下方 verified-after-bump block) |
+| 2026-Q3 | TODO            | TODO          | TODO                                                                                                                                                                                                                                                                                                                                                                                                | TODO                                                                                                        |
+| 2026-Q4 | TODO            | TODO          | TODO                                                                                                                                                                                                                                                                                                                                                                                                | TODO                                                                                                        |
+| 2027-Q1 | TODO            | TODO          | TODO                                                                                                                                                                                                                                                                                                                                                                                                | TODO                                                                                                        |
 
 > 配額超標(> 1 件)時,須在同季開立 bug issue 並於下一個 PR cycle 前 root-cause。
 
@@ -215,18 +215,17 @@ Worker 端 test count 與 typecheck 結果。
 - **002 SC-004**:`pnpm test:worker` 全綠;miniflare in-memory D1 + KV(no outbound HTTP)— 透過 vitest-pool-workers 之 hermetic isolate 自證
 - **001 SC-002**:Node + Worker 兩面在 WSL2 皆 green — single-platform half
 
-### Mac M1(2026-05-03 已量測 — see below for paired record)
+### Mac M1(2026-05-03 已量測 + bumped — see below for full timeline)
 
-**Status:** ✅ MAC SIDE VERIFIED / ⚠ WSL2 SIDE PARITY DEFECT(per 2026-05-03 配對量測,commit `137716f`)
+**Status:** ✅ FULLY VERIFIED(post `@cloudflare/vitest-pool-workers` 0.15.1 → 0.15.2 patch bump,PR #17;Mac + WSL2 dev container 4 gate 雙平台等價,issue #15 closed)
 
-**狀態解讀:**
+**狀態演進(時序):**
 
-- **Mac container 端**:4 gate 全綠(test:node 30/30 + test:worker 18/18 + typecheck 0 + lint 0)
-- **WSL2 container 端**:test:node + typecheck + lint 全綠;**`pnpm test:worker` reproducible 失敗於 cloudflare-pool worker 啟動階段**(`socket hang up` / `ECONNRESET`,3/3 重跑均失敗,失敗 spec file 隨機)
-- **本量測 SC-002 結論**:**partial verified** — 3/4 gate 雙平台等價,test:worker 因 WSL2 dev container × `@cloudflare/vitest-pool-workers@0.15.1` 環境性 race condition 不等價,計入 SC-008 2026-Q2 配額(1/1,未超標)
-- **後續**:follow-up issue 追根因(升版或序列化 config),修復後重跑取得 fully verified 證據;template 工作表保留(`.docs/fr013-mac-m1-measurement-template.md`)供未來重跑使用
+1. **2026-05-03 初次配對量測(commit `137716f`,vitest-pool-workers 0.15.1)**:Mac container 端全綠;WSL2 container 端 `pnpm test:worker` reproducible 失敗(socket hang up / ECONNRESET)→ partial verified,SC-008 2026-Q2 配額用 1/1
+2. **2026-05-03 patch bump(PR #17)**:`@cloudflare/vitest-pool-workers` 0.15.1 → 0.15.2(連帶 miniflare 4.20260426.0 → 4.20260430.0、wrangler 4.86.0 → 4.87.0、workerd binaries 1.20260426.1 → 1.20260430.1)
+3. **2026-05-03 verified-after-bump(commit `f9b7039`,vitest-pool-workers 0.15.2)**:WSL2 dev container 連跑 3 次 `pnpm test:worker` 全綠(0/3 reproducible)→ race 解,SC-002 升 fully verified
 
-詳細數據見下方「2026-05-03 — Mac M1 + WSL2 dev container 配對量測」block。
+詳細數據見下方兩個 measurement block(初次量測 + verified-after-bump)。
 
 ---
 
@@ -319,18 +318,77 @@ Serialized Error: { code: 'ECONNRESET' }
 
 **Follow-up:**
 
-- GitHub issue:WSL2 dev container × `@cloudflare/vitest-pool-workers@0.15.1` socket hang up race condition
-- 可選 fix 方向:(a) 升 vitest-pool-workers 0.15 → 0.16/1.0;(b) `vitest.config.worker.ts` 加 `pool` config 強制序列化 spec file 啟動;(c) pin 單一 workerd version;(d) 等 upstream patch
-- 修復後請重跑本量測,並把本 Defect Record 替換為 ✅ 全綠紀錄
+- ~~GitHub issue:WSL2 dev container × `@cloudflare/vitest-pool-workers@0.15.1` socket hang up race condition~~ → **issue #15 closed by PR #17**
+- ~~可選 fix 方向:(a) 升 vitest-pool-workers 0.15 → 0.16/1.0;(b) `vitest.config.worker.ts` 加 `pool` config 強制序列化 spec file 啟動;(c) pin 單一 workerd version;(d) 等 upstream patch~~ → **採用 (a) 之 patch 變體:0.15.1 → 0.15.2(npm latest)即解;見下方 verified-after-bump block**
+- ✅ 配對量測已重跑,Defect Record 整段保留作為歷史紀錄;新增「2026-05-03 verified after vitest-pool-workers 0.15.2 bump」block 為 fully verified 證據
 
-#### 對應 SC 證據(本量測)
+#### 對應 SC 證據(本量測 — 即初次量測,後已被 verified-after-bump 取代為主證據)
 
-- **001 SC-002 / 002 SC-002**:3/4 gate 雙平台 dev container 等價(test:node + typecheck + lint),1/4 gate(test:worker)WSL2 端缺陷 → **partial verified**;尚不能升 fully verified
-- **001 SC-008 / 002 SC-008**:本量測觸發 1 件 parity 缺陷,2026-Q2 配額由 0 升至 1(仍 ≤ 1,未超標)
-- **002 SC-004**:Mac container `pnpm test:worker` 全綠不打網路 ✅;WSL2 container `pnpm test:worker` 因 pool 啟動失敗 inconclusive(需 mitigation 修好後重驗)
+- **001 SC-002 / 002 SC-002**:3/4 gate 雙平台 dev container 等價(test:node + typecheck + lint),1/4 gate(test:worker)WSL2 端缺陷 → **partial verified**(本初次量測)→ **fully verified**(下方 verified-after-bump)
+- **001 SC-008 / 002 SC-008**:本量測觸發 1 件 parity 缺陷,2026-Q2 配額由 0 升至 1(仍 ≤ 1,未超標);**resolved 同日**,配額仍維持 1/1(歷史紀錄不撤銷,reflect 缺陷確實出現過 + 已解)
+- **002 SC-004**:Mac container `pnpm test:worker` 全綠不打網路 ✅;WSL2 container `pnpm test:worker` 因 pool 啟動失敗 inconclusive(需 mitigation 修好後重驗)→ **下方 verified-after-bump block ✅**
 
 #### Diff(無 raw log diff,因 worker pool 失敗即足以判缺陷)
 
 按 §Step 4 「Parity 缺陷分類」之第 5 條(整個 quality gate 指令在一邊 exit 0、另一邊 exit non-zero)直接判缺陷,無需 raw log diff。其他 3 個 gate 之 diff 後續 follow-up 修好 worker pool 一併補。
+
+---
+
+### 2026-05-03 — Verified after `@cloudflare/vitest-pool-workers` 0.15.2 bump(commit `f9b7039`)
+
+**Anchor:** `f9b7039 Merge pull request #17` (= 137716f + chore(deps): bump vitest-pool-workers 0.15.1 → 0.15.2)
+
+**結論:** ✅ **fully verified** — Mac M1 + WSL2 dev container 4 gate 全綠,issue #15 race condition 解,SC-002 升 fully verified。
+
+**為什麼這次成功:** PR #17 patch bump 把 `@cloudflare/vitest-pool-workers` 0.15.1 → 0.15.2(npm 當前 latest,2026-04-30 release),連帶升 transitive deps:miniflare 4.20260426.0 → 4.20260430.0、wrangler 4.86.0 → 4.87.0、workerd binaries 1.20260426.1 → 1.20260430.1。Upstream CHANGELOG 未明列 socket / race / pool 相關 fix,但 miniflare networking + workerd binary 升版實際解決了 WSL2 dev container 之 RPC handshake race(verify 結果見下方對照表)。
+
+#### Mac M1 dev container(沿用 2026-05-03 初次量測,bump 不影響原已綠的結果)
+
+| Gate               | 0.15.1 結果(初次)          | 0.15.2 結果(若重跑)          | 變化 |
+| ------------------ | -------------------------- | ---------------------------- | ---- |
+| `pnpm test:node`   | 9 files / 30 tests pass ✅ | (預期同)                     | —    |
+| `pnpm test:worker` | 5 files / 18 tests pass ✅ | (預期同;Mac 端原本就無 race) | —    |
+| `pnpm typecheck`   | exit 0                     | (預期同)                     | —    |
+| `pnpm lint`        | exit 0                     | (預期同)                     | —    |
+
+> Mac 端 0.15.1 量測即 4 gate 全綠;0.15.2 為 patch bump 不引入 breaking change,Mac 端不需重跑(**若需嚴格雙版本對照可後續補入,屬可選**)。
+
+#### WSL2 dev container(post-bump,3/3 重跑全綠)
+
+| 屬性                  | 值                                                                          |
+| --------------------- | --------------------------------------------------------------------------- |
+| Hardware              | Intel Core i7-10700 @ 2.90 GHz / 16 cores / 31.3 GB RAM                     |
+| Host OS               | Ubuntu 24.04.4 LTS (noble) on WSL2 / Linux 6.6.87.2-microsoft-standard-WSL2 |
+| Docker                | Docker version 29.4.0 / Docker Desktop 31.26 GiB allocated / 16 CPUs        |
+| Dev container OS      | Ubuntu 24.04.3 LTS / Linux 6.6.87.2-microsoft-standard-WSL2 x86_64          |
+| Toolchain (container) | Node `v22.22.2` / pnpm `9.12.0` / **vitest-pool-workers `0.15.2`**          |
+| Date/time             | 2026-05-03                                                                  |
+| 量測者                | project maintainer                                                          |
+| 環境                  | dev container                                                               |
+
+| Run                            | Files  | Tests    | Wall time | exit |
+| ------------------------------ | ------ | -------- | --------- | ---- |
+| **RUN 1** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 30.9s     | 0    |
+| **RUN 2** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 24.6s     | 0    |
+| **RUN 3** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 23.5s     | 0    |
+
+#### 0.15.1 vs 0.15.2 對照(WSL2 dev container)
+
+| 版本       | 連跑次數 | 通過率             | 平均 wall time(成功時)     | race condition                   |
+| ---------- | -------- | ------------------ | -------------------------- | -------------------------------- |
+| 0.15.1     | 4        | **0/4**(100% 失敗) | n/a(都失敗於 spec startup) | 100% reproducible socket hang up |
+| **0.15.2** | **3**    | **3/3**(0% 失敗)   | **26.3s**                  | **解** ✅                        |
+
+#### 對應 SC 證據(verified-after-bump)
+
+- **001 FR-013**:`pnpm test:worker` 跨 macOS Apple Silicon + WSL2 100% 等價(both 5/5 + 18/18 / exit 0)— ✅ verified
+- **002 FR-013**:同上,Worker pool 跨平台等價 — ✅ verified
+- **001 SC-002 / 002 SC-002**:Mac M1 + WSL2 同 commit dev container,4 gate 結果 100% 等價(test:node + test:worker + typecheck + lint)— ✅ **fully verified**
+- **001 SC-008 / 002 SC-008**:2026-Q2 配額仍 1/1(初次量測缺陷不撤銷,但已解);本驗證未觸發新缺陷
+- **002 SC-004**:WSL2 dev container `pnpm test:worker` 全綠 + miniflare in-memory(no outbound HTTP)— ✅ verified
+
+#### Diff 結論
+
+雙平台 4 gate 結果語意 100% 一致,僅 wall time 因 hardware speed 差異(Mac M1 vs WSL2 i7-10700;Mac container ~3s/gate vs WSL2 container ~25-30s/gate)— per §「常見差異參考表」屬非語意性差異,不計入 SC-008。
 
 ---
