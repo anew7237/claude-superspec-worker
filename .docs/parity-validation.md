@@ -336,22 +336,32 @@ Serialized Error: { code: 'ECONNRESET' }
 
 ### 2026-05-03 — Verified after `@cloudflare/vitest-pool-workers` 0.15.2 bump(commit `f9b7039`)
 
-**Anchor:** `f9b7039 Merge pull request #17` (= 137716f + chore(deps): bump vitest-pool-workers 0.15.1 → 0.15.2)
+**Anchor:** `c890625 Merge pull request #18` (PR #18 land 後;包含 PR #17 之 vitest-pool-workers 0.15.2 bump + 本 measurement record)
 
-**結論:** ✅ **fully verified** — Mac M1 + WSL2 dev container 4 gate 全綠,issue #15 race condition 解,SC-002 升 fully verified。
+**結論:** ✅ **fully verified (strict pair)** — Mac M1 + WSL2 dev container 4 gate 全綠**且雙平台 toolchain 完全同源**(both at vitest-pool-workers `0.15.2`),issue #15 race condition 解,SC-002 升 fully verified。
 
 **為什麼這次成功:** PR #17 patch bump 把 `@cloudflare/vitest-pool-workers` 0.15.1 → 0.15.2(npm 當前 latest,2026-04-30 release),連帶升 transitive deps:miniflare 4.20260426.0 → 4.20260430.0、wrangler 4.86.0 → 4.87.0、workerd binaries 1.20260426.1 → 1.20260430.1。Upstream CHANGELOG 未明列 socket / race / pool 相關 fix,但 miniflare networking + workerd binary 升版實際解決了 WSL2 dev container 之 RPC handshake race(verify 結果見下方對照表)。
 
-#### Mac M1 dev container(沿用 2026-05-03 初次量測,bump 不影響原已綠的結果)
+#### Mac M1 dev container(post-bump,3/3 重跑全綠 — strict pair 升級)
 
-| Gate               | 0.15.1 結果(初次)          | 0.15.2 結果(若重跑)          | 變化 |
-| ------------------ | -------------------------- | ---------------------------- | ---- |
-| `pnpm test:node`   | 9 files / 30 tests pass ✅ | (預期同)                     | —    |
-| `pnpm test:worker` | 5 files / 18 tests pass ✅ | (預期同;Mac 端原本就無 race) | —    |
-| `pnpm typecheck`   | exit 0                     | (預期同)                     | —    |
-| `pnpm lint`        | exit 0                     | (預期同)                     | —    |
+| 屬性                  | 值                                                                 |
+| --------------------- | ------------------------------------------------------------------ |
+| Hardware              | Mac mini M1 / 16 GB RAM                                            |
+| Host OS               | macOS 26.4.1 (Build 25E253) / Darwin kernel 25.4.0                 |
+| Docker                | Docker version 29.4.0 / Docker Desktop 7.75 GiB allocated / 8 CPUs |
+| Dev container OS      | Ubuntu 24.04.3 LTS / Linux 6.12.76-linuxkit aarch64                |
+| Toolchain (container) | Node `v22.22.2` / pnpm `9.12.0` / **vitest-pool-workers `0.15.2`** |
+| Date/time             | 2026-05-03                                                         |
+| 量測者                | project maintainer                                                 |
+| 環境                  | dev container(per `.devcontainer/devcontainer.json`)               |
 
-> Mac 端 0.15.1 量測即 4 gate 全綠;0.15.2 為 patch bump 不引入 breaking change,Mac 端不需重跑(**若需嚴格雙版本對照可後續補入,屬可選**)。
+| Run                                | Files  | Tests    | Wall time | exit |
+| ---------------------------------- | ------ | -------- | --------- | ---- |
+| **MAC RUN 1** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 3.87s     | 0    |
+| **MAC RUN 2** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 2.94s     | 0    |
+| **MAC RUN 3** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 2.94s     | 0    |
+
+> Mac 端 0.15.1 → 0.15.2 升版後 3/3 全綠,平均 3.25s,與初次 0.15.1 量測之 2.96s 差異純屬 wall-time noise。確認 patch bump 不影響 Mac 端(原本就無 race)。
 
 #### WSL2 dev container(post-bump,3/3 重跑全綠)
 
@@ -366,18 +376,22 @@ Serialized Error: { code: 'ECONNRESET' }
 | 量測者                | project maintainer                                                          |
 | 環境                  | dev container                                                               |
 
-| Run                            | Files  | Tests    | Wall time | exit |
-| ------------------------------ | ------ | -------- | --------- | ---- |
-| **RUN 1** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 30.9s     | 0    |
-| **RUN 2** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 24.6s     | 0    |
-| **RUN 3** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 23.5s     | 0    |
+| Run                                 | Files  | Tests    | Wall time | exit |
+| ----------------------------------- | ------ | -------- | --------- | ---- |
+| **WSL2 RUN 1** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 30.9s     | 0    |
+| **WSL2 RUN 2** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 24.6s     | 0    |
+| **WSL2 RUN 3** (`pnpm test:worker`) | 5/5 ✅ | 18/18 ✅ | 23.5s     | 0    |
 
-#### 0.15.1 vs 0.15.2 對照(WSL2 dev container)
+#### 完整嚴格對照矩陣(0.15.1 vs 0.15.2 × Mac vs WSL2)
 
-| 版本       | 連跑次數 | 通過率             | 平均 wall time(成功時)     | race condition                   |
-| ---------- | -------- | ------------------ | -------------------------- | -------------------------------- |
-| 0.15.1     | 4        | **0/4**(100% 失敗) | n/a(都失敗於 spec startup) | 100% reproducible socket hang up |
-| **0.15.2** | **3**    | **3/3**(0% 失敗)   | **26.3s**                  | **解** ✅                        |
+| 平台               | 版本       | 連跑次數 | 通過率             | 平均 wall time             | race condition                   |
+| ------------------ | ---------- | -------- | ------------------ | -------------------------- | -------------------------------- |
+| Mac container      | 0.15.1     | 1        | 1/1 ✅             | 2.96s                      | 無                               |
+| **Mac container**  | **0.15.2** | **3**    | **3/3 ✅**         | **3.25s**                  | 無(原本就無)                     |
+| WSL2 container     | 0.15.1     | 4        | **0/4**(100% 失敗) | n/a(都失敗於 spec startup) | 100% reproducible socket hang up |
+| **WSL2 container** | **0.15.2** | **3**    | **3/3**(0% 失敗)   | **26.3s**                  | **解** ✅                        |
+
+**Strict pair 結論**:雙平台 toolchain 完全同源於 `vitest-pool-workers@0.15.2`,各自連跑 3 次 worker pool 全綠;患者-治療對照(0.15.1 → 0.15.2)在 WSL2 端從 0% → 100% 通過,Mac 端維持 100%(無 regression)。SC-002 升級為**嚴格對照** fully verified,無 honest disclosure 妥協。
 
 #### 對應 SC 證據(verified-after-bump)
 
@@ -389,6 +403,8 @@ Serialized Error: { code: 'ECONNRESET' }
 
 #### Diff 結論
 
-雙平台 4 gate 結果語意 100% 一致,僅 wall time 因 hardware speed 差異(Mac M1 vs WSL2 i7-10700;Mac container ~3s/gate vs WSL2 container ~25-30s/gate)— per §「常見差異參考表」屬非語意性差異,不計入 SC-008。
+雙平台 4 gate 結果語意 100% 一致(test:node + test:worker + typecheck + lint 雙端 exit 0 + tests pass count 完全相同),僅 wall time 因 hardware speed 差異(Mac M1 ARM64 native vs WSL2 Intel i7-10700 x86_64;Mac container ~3s/gate vs WSL2 container ~25-30s/gate,差異 ~8x)— per §「常見差異參考表」屬非語意性差異,不計入 SC-008。
+
+**雙平台 toolchain 同源驗證:** 兩端 `pnpm list @cloudflare/vitest-pool-workers` 皆顯示 `0.15.2`,Node `v22.22.2` / pnpm `9.12.0` 一致;dev container OS 均為 Ubuntu 24.04.3 LTS(Linux kernel 不同因 host 不同,屬可解釋差異)。
 
 ---
