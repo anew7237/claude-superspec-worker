@@ -315,16 +315,26 @@ docker compose -f docker-compose.prod.yml up -d   # 部署(自行擴充的檔案
 │   └── memory/
 │       └── constitution.md  # 專案憲法
 ├── specs/                   # 各 feature 的 spec / plan / tasks(spec-kit 產物,於 repo root)
-│   └── 001-superspec-baseline/
+│   ├── 001-superspec-baseline/
+│   └── 002-cloudflare-worker/
 ├── scripts/
 │   └── db-init/             # postgres 第一次啟動會跑這裡的 .sql / .sh
 ├── src/                     # 應用程式碼(monorepo)
-│   └── node/                # Node 端
-│       ├── app.ts           # Hono app + routes
-│       ├── index.ts         # server entry
-│       └── db.ts, redis.ts, logger.ts, metrics.ts, http-metrics.ts
+│   ├── node/                # Node 端
+│   │   ├── app.ts           # Hono app + routes(含 /app-api/{health,now,echo})
+│   │   ├── index.ts         # server entry
+│   │   └── db.ts, redis.ts, logger.ts, metrics.ts, http-metrics.ts
+│   ├── worker/              # Cloudflare Worker 端(由 002 落地)
+│   │   ├── index.ts         # Hono app + ExportedHandler<Env>(4 route sets:health/d1/kv/proxy)
+│   │   ├── env.ts           # interface Env { DB; KV; UPSTREAM_URL }
+│   │   ├── error.ts         # 統一 error model
+│   │   └── routes/          # health.ts / d1.ts / kv.ts / proxy.ts
+│   └── shared/              # 雙端共用之純 type / pure-function utility(由 002 落地)
+│       └── types.ts
 ├── tests/
-│   └── node/                # Node 端測試(vitest)
+│   ├── node/                # Node 端測試(vitest plain pool)
+│   └── worker/              # Worker 端測試(vitest + miniflare;由 002 落地)
+├── .dev.vars.example        # Worker local secrets 範例(複製成 .dev.vars,gitignored)
 ├── .dockerignore            # docker build context 排除清單(node_modules, dist, .git, .specify 等)
 ├── .env.example             # 環境變數範例(複製成 .env)
 ├── .gitattributes           # 跨平台行尾統一
@@ -336,12 +346,18 @@ docker compose -f docker-compose.prod.yml up -d   # 部署(自行擴充的檔案
 ├── CLAUDE.md                # Claude Code 的 runtime 指引(SpecKit context + Git workflow project override)
 ├── docker-compose.yml       # app + db + redis 編排(於 repo root)
 ├── Dockerfile               # 應用程式 image(multi-stage:dev + production;CMD = dist/node/index.js)
-├── eslint.config.js         # ESLint 9 flat config
+├── eslint.config.js         # ESLint 9 flat config(含 FR-022 cross-runtime no-restricted-imports)
 ├── Makefile                 # 常用指令
-├── package.json             # Node 專案定義(dev → src/node/index.ts、start → dist/node/index.js)
+├── package.json             # 雙 runtime manifest(dev:node / dev:worker / test / typecheck 串接雙 tsconfig)
 ├── pnpm-lock.yaml           # pnpm 鎖版檔(必 commit,確保跨機器相依完全一致)
-├── tsconfig.json            # TypeScript 編譯設定(build 用,rootDir=src,輸出至 dist/node/)
+├── tsconfig.json            # base TS config(雙 runtime 共用)
+├── tsconfig.node.json       # Node 端 tsconfig(types: ["node"];include src/node + src/shared + tests/node)
+├── tsconfig.worker.json     # Worker 端 tsconfig(types: workers-types + vitest-pool-workers;include src/worker + src/shared + tests/worker)
+├── tsconfig.build.json      # build 用(rootDir=src,輸出至 dist/node/;noEmit: false)
 ├── tsconfig.lint.json       # ESLint 用 tsconfig(extends tsconfig.json,額外含 tests/)
+├── vitest.config.node.ts    # Node pool 設定(plain vitest)
+├── vitest.config.worker.ts  # Worker pool 設定(@cloudflare/vitest-pool-workers + miniflare in-memory D1+KV)
+├── wrangler.jsonc           # Wrangler 配置(main / compatibility_date / vars.UPSTREAM_URL / D1+KV bindings)
 └── README.md                # 本文件
 
 ```
