@@ -202,8 +202,7 @@ Job ID 與 check name 一致(GitHub Actions 預設行為),adopter 可在 Setting
 
 1. `actions/checkout@v4` with `fetch-depth: 0`(取全 history,gitleaks scan diff 或 log 都需要 base ref)
 2. `gitleaks/gitleaks-action@v2` with:
-   - PR trigger:預設 mode(掃 PR diff,comment finding on PR diff line)
-   - push to main trigger:`GITLEAKS_NOTIFY_USER_LIST` 等 env 設定走 git log scan(掃全 history)
+   - **mode 由 event auto-detect**(per gitleaks-action README;與 ci.yml:211-220 之實作 comment 同步):`pull_request` event 走 diff scan(掃 PR diff,comment finding on PR diff line);`push` event 走 git log scan(掃全 history,需配合 step 1 之 `fetch-depth: 0`)。**無 mode-switching env**;`GITLEAKS_NOTIFY_USER_LIST` 為 notification 用 env,**與 mode 切換無關**。
    - 失敗時 redact secret value(只列 file + line),per FR-011
 
 **Output**:
