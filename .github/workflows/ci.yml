@@ -28,11 +28,70 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Jobs added in subsequent tasks (T004 gates / T005 wrangler-bundle-check /
-  # T006 secret-scan / T013 spec-coverage-advisory / T015 toolchain-isolation-advisory).
-  # Skeleton placeholder (workflow YAML requires at least one job to be valid).
-  noop-skeleton:
+  # ═══════════════════════════════════════════════════════════════════════
+  # gates — 4 mandatory gates inside dev container (T004 / per FR-003 第 1 條 +
+  # FR-004 + ci-gates.md §2)
+  # Status: mandatory; branch protection 須加入 Required status checks 清單
+  # ═══════════════════════════════════════════════════════════════════════
+  gates:
+    name: gates
     runs-on: ubuntu-latest
-    if: false # Never runs; placeholder to keep YAML valid until T004+ add real jobs
+    timeout-minutes: 20 # SC-001 cache miss budget 15 min + 5 min safety margin
     steps:
-      - run: echo "skeleton placeholder"
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ───────────────────────────────────────────────────────────────────
+      # Pre-create mount sources for devcontainer.json bind mounts.
+      # CI runner 無 ~/.claude (no Claude OAuth needed in CI), but
+      # devcontainer.json mounts ~/.claude + ~/.claude.json → docker run
+      # would fail at start without these paths existing on host.
+      # 此 step 純創 empty paths,不放 secret。
+      # (per T002 verification finding + research §1)
+      # ───────────────────────────────────────────────────────────────────
+      - name: Pre-create devcontainer mount sources
+        run: |
+          mkdir -p ~/.claude
+          [ -f ~/.claude.json ] || echo '{}' > ~/.claude.json
+
+      # ───────────────────────────────────────────────────────────────────
+      # Cache pnpm store (per research §3 + ci-gates.md §2.1 step 2)
+      # Key: lockfile hash + runner OS;restore-keys fallback for stale lockfile
+      # ───────────────────────────────────────────────────────────────────
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
+      # ───────────────────────────────────────────────────────────────────
+      # Cache node_modules (per research §3 + ci-gates.md §2.1 step 3)
+      # ───────────────────────────────────────────────────────────────────
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node_modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node_modules-${{ runner.os }}-
+
+      # ───────────────────────────────────────────────────────────────────
+      # Run 4 mandatory gates inside dev container (per FR-004 + research §1)
+      # Uses devcontainers/ci@v0.3 (Microsoft official) which builds the
+      # .devcontainer/Dockerfile + applies features + runs runCmd inside.
+      # ───────────────────────────────────────────────────────────────────
+      - name: Run 4 mandatory gates inside dev container
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: ghcr.io/${{ github.repository }}/dev-container
+          cacheFrom: ghcr.io/${{ github.repository }}/dev-container
+          push: never # 不 push image to GHCR (avoids needing GITHUB_TOKEN write perm)
+          runCmd: |
+            set -euo pipefail
+            pnpm install --frozen-lockfile
+            pnpm typecheck
+            pnpm lint
+            pnpm test:node
+            pnpm test:worker
