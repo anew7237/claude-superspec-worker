@@ -79,3 +79,7 @@ app.get('/metrics', async (c) => {
   c.header('Content-Type', register.contentType);
   return c.body(await register.metrics());
 });
+
+// Issue #33 verify: T014 spec-coverage-advisory — trivial src change without
+// corresponding specs/NNN-*/ artifact. Should trigger advisory comment
+// (advisory only, does NOT block merge). PR will be closed without merge.
