@@ -95,3 +95,112 @@ jobs:
             pnpm lint
             pnpm test:node
             pnpm test:worker
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # wrangler-bundle-check — verify Worker bundle clean + size budget (T005 /
+  # per FR-003 第 2 條 + ci-gates.md §3 + research §4)
+  # Status: mandatory; branch protection 須加入 Required status checks 清單
+  # Mechanizes 002 FR-009 + SC-003 (bundle 不含 Node-only modules) +
+  # 003 SC-005 (bundle size ≤ 100 KiB).
+  # ═══════════════════════════════════════════════════════════════════════
+  wrangler-bundle-check:
+    name: wrangler-bundle-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15 # cache hit ≤ 3 min;cache miss ≤ 10 min;5 min margin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pre-create devcontainer mount sources
+        run: |
+          mkdir -p ~/.claude
+          [ -f ~/.claude.json ] || echo '{}' > ~/.claude.json
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node_modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node_modules-${{ runner.os }}-
+
+      # ───────────────────────────────────────────────────────────────────
+      # Inside dev container: wrangler dry-run + grep + size assertion
+      # (per research §4 + ci-gates.md §3.1)
+      # 7 forbidden modules: pg / redis / pino / prom-client /
+      # @hono/node-server / node:fs / node:child_process
+      # Bundle budget: 100 KiB (~64 KiB current, 50% headroom; per spec Q2 + SC-005)
+      # ───────────────────────────────────────────────────────────────────
+      - name: Run wrangler bundle check inside dev container
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: ghcr.io/${{ github.repository }}/dev-container
+          cacheFrom: ghcr.io/${{ github.repository }}/dev-container
+          push: never
+          runCmd: |
+            set -euo pipefail
+            pnpm install --frozen-lockfile
+            pnpm exec wrangler deploy --dry-run
+
+            BUNDLE=.wrangler/dryrun/index.js
+            if [ ! -f "$BUNDLE" ]; then
+              echo "❌ Bundle not found at $BUNDLE — wrangler dry-run failed silently?"
+              ls -la .wrangler/ 2>&1 || echo "(.wrangler/ missing entirely)"
+              exit 1
+            fi
+
+            # Check 1: bundle 不含 Node-only modules (002 FR-009 / SC-003)
+            FORBIDDEN=("pg" "redis" "pino" "prom-client" "@hono/node-server" "node:fs" "node:child_process")
+            FAIL=0
+            for mod in "${FORBIDDEN[@]}"; do
+              if grep -q "$mod" "$BUNDLE"; then
+                echo "❌ BUNDLE CONTAINS FORBIDDEN MODULE: $mod"
+                grep -n "$mod" "$BUNDLE" | head -5
+                FAIL=1
+              fi
+            done
+            if [ "$FAIL" -ne 0 ]; then
+              exit 1
+            fi
+
+            # Check 2: bundle size ≤ 100 KiB (003 SC-005)
+            SIZE=$(wc -c < "$BUNDLE")
+            BUDGET=$((100 * 1024))
+            if [ "$SIZE" -gt "$BUDGET" ]; then
+              echo "❌ BUNDLE SIZE $SIZE bytes ($((SIZE / 1024)) KiB) exceeds budget $BUDGET bytes (100 KiB)"
+              exit 1
+            fi
+            echo "✅ bundle clean: $SIZE bytes ($((SIZE / 1024)) KiB), budget $((BUDGET / 1024)) KiB"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # secret-scan — gitleaks scan PR diff or full git history (T006 / per
+  # FR-003 第 3 條 + ci-gates.md §4 + research §2)
+  # Status: mandatory; branch protection 須加入 Required status checks 清單
+  # Mechanizes 001 SC-006 (zero OAuth credentials in git history).
+  # NOT inside dev container (gitleaks-action is standalone — no need
+  # for Node / pnpm / wrangler).
+  # ═══════════════════════════════════════════════════════════════════════
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (full history for git log scan)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 全 history,讓 gitleaks 可掃 git log on push to main
+
+      - name: Run gitleaks (PR diff for PR; full history for push to main)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 預設行為:PR mode 掃 PR diff;non-PR (push) 掃 git log
+          # gitleaks 預設 redact secret value (only file + line shown);per FR-011
