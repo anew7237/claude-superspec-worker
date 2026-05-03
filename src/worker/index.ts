@@ -23,3 +23,9 @@ app.notFound(() => jsonError(404, 'not_found'));
 export default {
   fetch: app.fetch,
 } satisfies ExportedHandler<Env>;
+
+// T008 negative test (003-ci-workflow per quickstart §5.3): import lodash to
+// bloat Worker bundle past 100 KiB threshold. Should be caught by
+// wrangler-bundle-check size assertion. PR will be closed without merge.
+import _ from 'lodash';
+console.log(_.noop());
