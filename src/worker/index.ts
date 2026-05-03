@@ -23,3 +23,9 @@ app.notFound(() => jsonError(404, 'not_found'));
 export default {
   fetch: app.fetch,
 } satisfies ExportedHandler<Env>;
+
+// T007 negative test (003-ci-workflow per quickstart §5.2): cross-runtime
+// import should be caught by FR-022 (Layer 1 dual tsconfig OR Layer 2
+// ESLint no-restricted-imports). PR will be closed without merge.
+import { Pool } from 'pg';
+const _t007 = Pool;
