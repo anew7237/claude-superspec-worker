@@ -136,7 +136,7 @@
   - **001 FR-017** Ubuntu side mechanized(CI 在 dev container 內跑 4 gates)— `partial mechanical, Ubuntu only`(macOS side 仍 manual per `.docs/parity-validation.md`)
   - **001 SC-005** mechanized(升版 commit 跑 4 gates 即證明 revert 可行)
   - **001 SC-006** mechanized(gitleaks job 每 PR + main push 跑)
-  - **001 SC-008** partial mechanized(Ubuntu 內 4 gate 一致性自動驗;跨 Mac/WSL2 仍 manual)
+  - **001 SC-008** **NOT mechanized by 003** — single-runner CI(只跑 ubuntu-latest)無法 mechanize 跨平台 parity quota,因 SC-008 之定義即「同 test 一邊 pass / 另一邊 fail」之 Mac vs WSL2 對照,需 ≥ 2 runners 才有意義。003 之 Ubuntu side gates job 僅作為 parity pair 之「一半」baseline,並未 reduce SC-008 manual reconciliation 之需要(per `.docs/parity-validation.md`)。SC-008 mechanization 屬 issue #34 (opt-in macOS runner) 之範圍,本 feature 範圍外。
   - **001 SC-003** advisory(per FR-008)
   - **001 FR-019** advisory(per FR-008)
   - **002 FR-009** fully mechanized(wrangler-bundle-check job 直接 grep)
