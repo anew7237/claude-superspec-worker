@@ -79,3 +79,7 @@ app.get('/metrics', async (c) => {
   c.header('Content-Type', register.contentType);
   return c.body(await register.metrics());
 });
+
+// Issue #33 verify: T016 toolchain-isolation-advisory — same PR touches
+// BOTH package.json + pnpm-lock.yaml AND src/**. Should trigger advisory
+// comment (advisory only, does NOT block merge). PR will be closed.
