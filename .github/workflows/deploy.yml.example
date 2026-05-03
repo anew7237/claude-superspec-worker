@@ -1,0 +1,113 @@
+# Adopter-side CD template — Cloudflare Workers deploy on push to main
+#
+# ⚠ THIS FILE IS A TEMPLATE. GitHub Actions does NOT parse `.yml.example`.
+#
+# To enable CD on YOUR fork:
+#
+#   1. Complete `specs/002-cloudflare-worker/quickstart.md` Mode C first
+#      (wrangler login + create D1 + create KV + fill wrangler.jsonc IDs +
+#      seed KV + first manual `wrangler deploy` succeeded). CD requires the
+#      account / bindings to already exist.
+#
+#   2. Create a Cloudflare API token at
+#        https://dash.cloudflare.com/profile/api-tokens
+#      Use template "Edit Cloudflare Workers". Copy the token value.
+#
+#   3. Add it to YOUR fork's GitHub repo secrets:
+#        Settings → Secrets and variables → Actions → New repository secret
+#        Name:  CLOUDFLARE_API_TOKEN
+#        Value: <paste the token>
+#
+#   4. (optional) If your Cloudflare account has multiple accounts under
+#      one user, also add CLOUDFLARE_ACCOUNT_ID as a secret.
+#
+#   5. Rename this file:
+#        mv .github/workflows/deploy.yml.example .github/workflows/deploy.yml
+#      Commit + push. The next push to main triggers deploy.
+#
+# What this does:
+#   - Triggers AFTER PRs merge to main (push event), or via manual dispatch
+#   - Re-runs gates inside the same dev container that CI uses (parent repo
+#     style — keeps adopter aligned with 003 ci.yml mechanization)
+#   - Runs `wrangler deploy` against the adopter's account
+#   - Smoke-tests the deployed Worker (3 endpoints)
+#
+# What this does NOT do:
+#   - Does not preview deploys on PRs (parent repo's ci.yml already does
+#     `wrangler deploy --dry-run` for bundle inspection — that is the
+#     PR-time gate; full deploy intentionally only happens post-merge)
+#   - Does not create D1 / KV resources (adopter does this once via Mode C;
+#     CD assumes the bindings in wrangler.jsonc are already real)
+#   - Does not handle multi-environment promotion (staging/prod). To add
+#     environments, copy this workflow + parameterize via wrangler env.
+#
+# Reference: specs/002-cloudflare-worker/quickstart.md "Mode D — automated CD"
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false # 不要中斷部署中的 run;讓它跑完再起下一個
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # PR-time gates 已於 ci.yml 跑過;此處不重跑,直接信任 main 已 vetted
+      # (依賴 branch protection 要求 ci.yml 全綠才能 merge to main)。
+      # 若你的 fork 允許 direct push to main(無 branch protection),
+      # 強烈建議在此 step 前加一次 `pnpm typecheck && pnpm lint && pnpm test`
+      # 以避免 broken main 直接部署。
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }} # optional;留空時 wrangler 用 token 內預設 account
+          command: deploy
+
+      # Smoke test 部署後的 Worker。失敗即 fail workflow,讓 adopter 收到通知。
+      # `WORKER_URL` 預設為 `<name>.<account>.workers.dev`;若 adopter 綁了
+      # custom domain 須改為該 domain。
+      - name: Smoke test deployed Worker
+        env:
+          WORKER_URL: ${{ vars.WORKER_URL || '' }}
+        run: |
+          set -euo pipefail
+          if [ -z "$WORKER_URL" ]; then
+            echo "⚠ WORKER_URL repo variable not set — skip smoke test"
+            echo "   Set it via Settings → Secrets and variables → Actions →"
+            echo "   Variables → New repository variable, name=WORKER_URL,"
+            echo "   value=https://<your-worker>.<your-account>.workers.dev"
+            exit 0
+          fi
+          echo "→ Smoke testing $WORKER_URL"
+          curl -sSf "$WORKER_URL/health" | grep -q '"status":"ok"' || (echo "❌ /health failed" && exit 1)
+          curl -sSf "$WORKER_URL/d1/now" | grep -q '"source":"d1"' || (echo "❌ /d1/now failed" && exit 1)
+          # /kv/echo?k=foo 預期回 KV 中 foo key 之值;Mode C step 5 已 seed
+          curl -sSf "$WORKER_URL/kv/echo?k=foo" | grep -q '"source":"kv"' || (echo "❌ /kv/echo failed" && exit 1)
+          echo "✅ Smoke test passed"
