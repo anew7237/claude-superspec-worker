@@ -79,3 +79,8 @@ app.get('/metrics', async (c) => {
   c.header('Content-Type', register.contentType);
   return c.body(await register.metrics());
 });
+
+// T014 negative test (003-ci-workflow per quickstart §5.5): trivial src/ change
+// without corresponding specs/NNN-*/ artifact. Should trigger
+// spec-coverage-advisory comment (advisory, does NOT block merge).
+// PR will be closed without merge.
