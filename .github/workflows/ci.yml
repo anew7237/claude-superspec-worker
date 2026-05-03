@@ -210,3 +210,151 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 預設行為:PR mode 掃 PR diff;non-PR (push) 掃 git log
           # gitleaks 預設 redact secret value (only file + line shown);per FR-011
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # spec-coverage-advisory — comment when PR touches src/** but no
+  # specs/NNN-*/ artifact updated (T013 / per FR-008 第 1 條 +
+  # ci-gates.md §5 + research §6, §11)
+  # Status: ADVISORY (never blocks merge); NOT in branch protection list
+  # Mechanizes 001 SC-003 advisory提示 (reviewer 仍保留豁免權)
+  # ═══════════════════════════════════════════════════════════════════════
+  spec-coverage-advisory:
+    name: spec-coverage-advisory
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write # 須能 post comment
+      contents: read
+    steps:
+      - name: Check spec coverage + post advisory if needed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+
+            // FR-009: skip 完全 doc-only PR (動 specs/** + .docs/** + *.md only)
+            const isDocFile = (f) =>
+              f.startsWith('specs/') ||
+              f.startsWith('.docs/') ||
+              f.endsWith('.md');
+            const isDocOnly = files.every((f) => isDocFile(f.filename));
+            if (isDocOnly) {
+              core.info('Doc-only PR — skip spec-coverage-advisory (per FR-009)');
+              return;
+            }
+
+            // Trigger condition: PR touches src/** but does NOT touch specs/NNN-*/
+            const touchesSrc = files.some((f) => f.filename.startsWith('src/'));
+            const touchesSpecs = files.some((f) => f.filename.startsWith('specs/'));
+
+            if (touchesSrc && !touchesSpecs) {
+              const body = [
+                '⚠ **Advisory: spec coverage**',
+                '',
+                'This PR modifies `src/**` but no `specs/NNN-*/` artifact was added or updated.',
+                '',
+                'Per 001 baseline FR-004 (spec-kit pipeline) + SC-003, non-trivial changes',
+                'should correspond to a spec directory. Reviewer please decide:',
+                '',
+                '- (a) This is a trivial change exempt from spec coverage (per FR-004 trivial 豁免)',
+                '  — leave a comment in this PR explaining the exemption rationale',
+                '- (b) Open a spec PR first, then update this PR to reference it',
+                '',
+                '_This advisory does NOT block merge. It re-fires on every push (per design)._',
+                '_Spec: `specs/003-ci-workflow/contracts/ci-gates.md` §5_',
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+              core.info('Posted spec-coverage-advisory comment');
+            } else {
+              core.info('PR has matching spec coverage OR does not touch src/ — no comment');
+            }
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # toolchain-isolation-advisory — comment when PR mixes deps + src changes
+  # (T015 / per FR-008 第 2 條 + ci-gates.md §6 + research §6, §11)
+  # Status: ADVISORY (never blocks merge); NOT in branch protection list
+  # Mechanizes 001 FR-019 advisory提示 (toolchain isolated commit nudge)
+  # ═══════════════════════════════════════════════════════════════════════
+  toolchain-isolation-advisory:
+    name: toolchain-isolation-advisory
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Check toolchain isolation + post advisory if needed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+
+            // FR-009: skip doc-only PR (same logic as spec-coverage-advisory;
+            // inline duplicate per plan §Constitution Check IV note "本 task
+            // 初版用 inline 重複,後續 follow-up 抽 composite action")
+            const isDocFile = (f) =>
+              f.startsWith('specs/') ||
+              f.startsWith('.docs/') ||
+              f.endsWith('.md');
+            const isDocOnly = files.every((f) => isDocFile(f.filename));
+            if (isDocOnly) {
+              core.info('Doc-only PR — skip toolchain-isolation-advisory (per FR-009)');
+              return;
+            }
+
+            // Trigger condition: PR touches BOTH (package.json or pnpm-lock.yaml)
+            // AND (src/** or tests/**)
+            const touchesDeps = files.some(
+              (f) => f.filename === 'package.json' || f.filename === 'pnpm-lock.yaml'
+            );
+            const touchesSrcOrTests = files.some(
+              (f) => f.filename.startsWith('src/') || f.filename.startsWith('tests/')
+            );
+
+            if (touchesDeps && touchesSrcOrTests) {
+              const body = [
+                '⚠ **Advisory: toolchain isolation**',
+                '',
+                'This PR modifies BOTH toolchain (`package.json` / `pnpm-lock.yaml`) AND',
+                'application code (`src/**` / `tests/**`).',
+                '',
+                'Per 001 baseline FR-019 + 002 spec assumption #6, toolchain bumps should',
+                'be isolated commits / PRs to enable single-commit revert. Reviewer please',
+                'decide:',
+                '',
+                '- (a) Split into two PRs (recommended)',
+                '- (b) Leave a comment in this PR explaining why bundling is necessary',
+                '  (e.g. dep upgrade requires src adaptation in same logical change)',
+                '',
+                '_This advisory does NOT block merge. It re-fires on every push (per design)._',
+                '_Spec: `specs/003-ci-workflow/contracts/ci-gates.md` §6_',
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+              core.info('Posted toolchain-isolation-advisory comment');
+            } else {
+              core.info('PR is toolchain-only OR src-only — no comment');
+            }
