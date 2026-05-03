@@ -1,0 +1,38 @@
+# CI Workflow — 003-ci-workflow
+#
+# Mechanizes 001 baseline FR-017 (CI ↔ dev container same base image) +
+# SC-005 (toolchain revert) + SC-006 (zero OAuth in git) + 002 FR-009 /
+# SC-003 (Worker bundle 不含 Node-only modules).
+#
+# 3 mandatory + 2 advisory job. Mandatory failure 阻擋 merge (via branch
+# protection); advisory only PR comment, never blocks.
+#
+# Spec: specs/003-ci-workflow/spec.md
+# Plan: specs/003-ci-workflow/plan.md
+# Contracts: specs/003-ci-workflow/contracts/ci-gates.md
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel in-progress runs on the same ref (per research §7).
+# - Same PR push twice → only latest commit runs
+# - PR run + main run → independent (different ref)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Jobs added in subsequent tasks (T004 gates / T005 wrangler-bundle-check /
+  # T006 secret-scan / T013 spec-coverage-advisory / T015 toolchain-isolation-advisory).
+  # Skeleton placeholder (workflow YAML requires at least one job to be valid).
+  noop-skeleton:
+    runs-on: ubuntu-latest
+    if: false # Never runs; placeholder to keep YAML valid until T004+ add real jobs
+    steps:
+      - run: echo "skeleton placeholder"
