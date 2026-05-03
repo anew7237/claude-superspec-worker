@@ -212,7 +212,7 @@ Adopter 拿到本 monorepo 後,依 README 走完一次完整部署:`wrangler log
 
 - **001-superspec-baseline**(已 merge 至 `main`)— 本 feature 對其 FR-018 / FR-021 / FR-022 / SC-011 forward-declarations 兌現;baseline 之憲法 + 5 個 contracts(cli-pipeline / devcontainer / observability / quality-gates / sensitive-material)為本 feature 的 Constitution Check anchor。
 - **設計源** `.docs/20260430a-cloudflare-worker.md` — §1 brainstorming + §2 implementation plan + §3 Node-side T15 work + §4 proxy fix + §5 unified monorepo target + §6 decisions log + §7 input prompt。本 spec 為其規格化產物;設計源在本 feature merge 後建議標 historical reference。
-- **新引入 npm 依賴**(per 設計源 §1.10 + §5.3):`wrangler ^3`、`@cloudflare/workers-types ^4`、`@cloudflare/vitest-pool-workers ^0.15` 至 `devDependencies`;runtime 端 `hono ^4` 已存在於既有 `package.json`(共用)。
+- **新引入 npm 依賴**(per 設計源 §1.10 + §5.3):`wrangler ^4`(初版鎖 `^3`;2026-05-03 升 `^4` per FR-019 孤立 commit,以解雙版本 transitive dedupe drift — `vitest-pool-workers@0.15.2` internal 已用 `wrangler@4`)、`@cloudflare/workers-types ^4`、`@cloudflare/vitest-pool-workers ^0.15` 至 `devDependencies`;runtime 端 `hono ^4` 已存在於既有 `package.json`(共用)。
 - **新引入配置檔**:`wrangler.jsonc`(repo root)、`tsconfig.node.json`、`tsconfig.worker.json`、`vitest.config.node.ts`、`vitest.config.worker.ts`(或 vitest 4 projects 單檔)、`.dev.vars.example`(可選)。
 - **Cloudflare account**(adopter 端,部署時必需):free tier 即足以 demo;不在 monorepo 提供範圍。
 - **已落地之 baseline mechanical gates**:本 feature 不可破壞 `pnpm test` / `typecheck` / `lint` / `prettier --check .` 全綠的 baseline 狀態(per 001 baseline 之 quality-gates contract)。
