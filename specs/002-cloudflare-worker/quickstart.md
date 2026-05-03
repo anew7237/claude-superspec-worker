@@ -9,6 +9,7 @@ demo 全綠 → first-time deploy 至 Cloudflare,於 ≤ 30 min 內完成。
 > - **Mode A — quick demo**:`pnpm dev:node` + `pnpm dev:worker` 純 host process,**5 分鐘** 看到 Worker `/health` + `/d1/now` + `/kv/echo` + `/app-api/health` 透傳
 > - **Mode B — full demo**:`make up` + `pnpm dev:worker`,**10 分鐘** 看到 6 個對照 endpoint 全 200(含 Postgres / Redis backed `/app-api/now` `/app-api/echo`)
 > - **Mode C — first-time deploy**:從 Mode A/B 之上,完成 Cloudflare account 設定 + `wrangler deploy`,**30 分鐘**(per FR-012 + SC-005)
+> - **Mode D — automated CD via GitHub Actions**(opt-in,~5 分鐘 setup):Mode C 之上,在自己 fork 啟用 `.github/workflows/deploy.yml.example` template,push to main 自動部署 + smoke test
 
 ## Step 0 — 前置(一次性)
 
@@ -176,6 +177,55 @@ curl -sS $DEPLOYED/app-api/health
 # 期望: {"status":"ok","service":"nodejs"} (透傳自 host docker 上的 Node 端)
 ```
 
+## Mode D — automated CD via GitHub Actions(opt-in,~5 min setup)
+
+> **超出 003-ci-workflow Q6 之 Ubuntu CI only 邊界**;CD 落於 adopter 自己 fork,**不**在 parent repo 啟用。Parent repo 提供 `.github/workflows/deploy.yml.example` template,zero-cost 給 adopter copy。
+
+**前置**:Mode C 必先成功一次(D1 / KV 已建、`wrangler.jsonc` ID 已填、KV `foo` key 已 seed、`wrangler deploy` 手動部署過)。CD 不負責建 binding,只負責部署既有 worker。
+
+```bash
+# 1. 在 Cloudflare dashboard 取 API token
+#    https://dash.cloudflare.com/profile/api-tokens
+#    用「Edit Cloudflare Workers」template;copy token value
+
+# 2. 在你的 fork(GitHub UI)加 secret + variable:
+#    Settings → Secrets and variables → Actions
+#      Secrets:
+#        CLOUDFLARE_API_TOKEN  =  <步驟 1 之 token>
+#        CLOUDFLARE_ACCOUNT_ID =  <optional;多 account 才需>
+#      Variables:
+#        WORKER_URL = https://<your-worker>.<your-account>.workers.dev
+#        (smoke test 用;沒設 smoke test 會 skip)
+
+# 3. rename template 啟用
+mv .github/workflows/deploy.yml.example .github/workflows/deploy.yml
+git add .github/workflows/deploy.yml
+git commit -m "chore(ci): enable CD"
+git push
+
+# 4. 之後每個 PR merge to main 都會自動跑 deploy job
+#    (push trigger);也可手動 workflow_dispatch
+```
+
+**deploy job 流程**(per template):
+
+1. `actions/checkout@v6`
+2. setup pnpm + Node(從 `.nvmrc` 取版本)
+3. `pnpm install --frozen-lockfile`
+4. `cloudflare/wrangler-action@v3` 跑 `wrangler deploy`(用 `CLOUDFLARE_API_TOKEN` 認證)
+5. `curl` smoke test 部署 URL 之 `/health` `/d1/now` `/kv/echo?k=foo`(若 `WORKER_URL` 變數有設)
+
+**不做**:
+
+- PR-time preview deploy(parent ci.yml 之 `wrangler-bundle-check` 已 dry-run + size + Node-only ban,屬 PR-time gate)
+- 多環境(staging/prod)— 要的話 copy 此 workflow 並用 wrangler env 參數化
+- 自動建 binding — Mode C 一次性手動
+
+**Tradeoff**:
+
+- ✅ Pro:push to main → 部署完畢,maintainer 不必記得跑 `wrangler deploy`;smoke test 失敗即收 GitHub notification
+- ⚠ Con:Cloudflare API token 落於 GitHub secrets(對應的 risk profile 由 adopter 自行評估);需人工把 token rotate(per Cloudflare token expiry policy)
+
 ## Step 6 — Quality gates 驗證
 
 於 dev container 內(任何 mode 都應綠):
@@ -206,6 +256,7 @@ pnpm exec prettier --check .   # exit 0
 - [ ] **Mode B**:6 條 curl 全 200(含 Postgres + Redis backed)
 - [ ] **Quality gates**:`pnpm test/typecheck/lint/prettier --check .` 全 exit 0
 - [ ] **Mode C(若做)**:wrangler deploy 成功 + 部署 URL `/health` `/d1/now` `/kv/echo?k=foo` 全 200
+- [ ] **Mode D(若做)**:`deploy.yml` 啟用後 push to main 觸發 deploy job 全綠 + smoke test 過(or `WORKER_URL` 未設時顯式 skip)
 - [ ] **跨平台**(若做):Mac M1 + WSL2 同一 commit 之 `pnpm test` 結果 byte-equivalent(per FR-013 / SC-002)
 
 ✅ 全部勾選 → 本 feature 完整兌現,Worker runtime 端與 Node runtime 端真正並存,001 baseline 之
