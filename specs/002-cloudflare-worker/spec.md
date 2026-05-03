@@ -206,7 +206,7 @@ Adopter 拿到本 monorepo 後,依 README 走完一次完整部署:`wrangler log
 7. **Constitution 版本至少升 MINOR**(1.0.0 → 1.1.0):per 憲法 amendment procedure,新增 Variant Amendment 段為 MINOR 級變動;本 feature 之 spec / plan 須 cite v1.1.0 為其 Constitution Check anchor。
 8. **`tsconfig.lint.json` 仍存在**:既有 ESLint 用 tsconfig 不需移除;若需擴大 ESLint 涵蓋至雙 runtime,屬本 feature 範圍內小調整。
 9. **既有 `tests/node/` 不變更**:雙 vitest pool 設定後,既有 `tests/node/**.test.ts` 與其新對應 tsconfig include 仍互通;本 feature 不重命名既有檔。
-10. **Cloudflare workers-types 版本鎖 `^4`**:配合 Workers runtime 2024-09-01 compatibility date;升版屬未來 toolchain bump。
+10. **Cloudflare workers-types 版本鎖 `^4`**:配合 Workers runtime 2025-09-01 compatibility date;升版屬未來 toolchain bump。
 
 ## Dependencies
 
