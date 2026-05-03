@@ -222,7 +222,7 @@ T022 落在 Phase 3 結尾,Worker `/app-api/*` proxy(T033)與 Worker `/d1/*` `/k
 
 ```bash
 cp .dev.vars.example .dev.vars
-pnpm dev:worker &        # wrangler 3.114.17 → miniflare on :8787
+pnpm dev:worker &        # wrangler 4.87.0 → miniflare on :8787
 pnpm dev:node &          # node --watch on :8000
 ```
 
@@ -457,7 +457,7 @@ UPSTREAM_URL=http://localhost:8000
 EOF
 make up                                              # docker compose up -d (3 service healthy)
 docker compose exec redis redis-cli SET foo "hello-from-redis"   # → OK
-nohup pnpm dev:worker > /tmp/wrangler.log 2>&1 &     # wrangler 3.114.17 → :8787
+nohup pnpm dev:worker > /tmp/wrangler.log 2>&1 &     # wrangler 4.87.0 → :8787
 # wait worker ready (~1s)
 pnpm exec wrangler kv key put --binding=KV foo "hello-from-kv" --local   # → OK
 # t=67s: 跑全 7 條 curl

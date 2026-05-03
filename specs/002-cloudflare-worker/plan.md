@@ -25,7 +25,7 @@ Mode B(`make up` + `dev:worker`)雙 entry,UPSTREAM_URL 文件化兩值(per Q1 Cl
 **Primary Dependencies**:
 
 - 共用:`hono ^4`(已存於 baseline `package.json`)
-- Worker 新增:`wrangler ^3`、`@cloudflare/workers-types ^4`、`@cloudflare/vitest-pool-workers ^0.15`(devDependencies)
+- Worker 新增:`wrangler ^4`(初版 `^3`,2026-05-03 升 `^4` 解 transitive dedupe drift)、`@cloudflare/workers-types ^4`、`@cloudflare/vitest-pool-workers ^0.15`(devDependencies)
 - Node 不新增 deps(`/app-api/*` 三 route 用既有 `pg` `redis`)
 
 **Storage**:Worker side — D1(SQL,`SELECT CURRENT_TIMESTAMP` placeholder)+ KV(read-only echo);
