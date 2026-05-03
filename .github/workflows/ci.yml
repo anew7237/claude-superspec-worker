@@ -1,0 +1,360 @@
+# CI Workflow — 003-ci-workflow
+#
+# Mechanizes 001 baseline FR-017 (CI ↔ dev container same base image) +
+# SC-005 (toolchain revert) + SC-006 (zero OAuth in git) + 002 FR-009 /
+# SC-003 (Worker bundle 不含 Node-only modules).
+#
+# 3 mandatory + 2 advisory job. Mandatory failure 阻擋 merge (via branch
+# protection); advisory only PR comment, never blocks.
+#
+# Spec: specs/003-ci-workflow/spec.md
+# Plan: specs/003-ci-workflow/plan.md
+# Contracts: specs/003-ci-workflow/contracts/ci-gates.md
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Cancel in-progress runs on the same ref (per research §7).
+# - Same PR push twice → only latest commit runs
+# - PR run + main run → independent (different ref)
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════════
+  # gates — 4 mandatory gates inside dev container (T004 / per FR-003 第 1 條 +
+  # FR-004 + ci-gates.md §2)
+  # Status: mandatory; branch protection 須加入 Required status checks 清單
+  # ═══════════════════════════════════════════════════════════════════════
+  gates:
+    name: gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20 # SC-001 cache miss budget 15 min + 5 min safety margin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ───────────────────────────────────────────────────────────────────
+      # Pre-create mount sources for devcontainer.json bind mounts.
+      # CI runner 無 ~/.claude (no Claude OAuth needed in CI), but
+      # devcontainer.json mounts ~/.claude + ~/.claude.json → docker run
+      # would fail at start without these paths existing on host.
+      # 此 step 純創 empty paths,不放 secret。
+      # (per T002 verification finding + research §1)
+      # ───────────────────────────────────────────────────────────────────
+      - name: Pre-create devcontainer mount sources
+        run: |
+          mkdir -p ~/.claude
+          [ -f ~/.claude.json ] || echo '{}' > ~/.claude.json
+
+      # ───────────────────────────────────────────────────────────────────
+      # Cache pnpm store (per research §3 + ci-gates.md §2.1 step 2)
+      # Key: lockfile hash + runner OS;restore-keys fallback for stale lockfile
+      # ───────────────────────────────────────────────────────────────────
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
+      # ───────────────────────────────────────────────────────────────────
+      # Cache node_modules (per research §3 + ci-gates.md §2.1 step 3)
+      # ───────────────────────────────────────────────────────────────────
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node_modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node_modules-${{ runner.os }}-
+
+      # ───────────────────────────────────────────────────────────────────
+      # Run 4 mandatory gates inside dev container (per FR-004 + research §1)
+      # Uses devcontainers/ci@v0.3 (Microsoft official) which builds the
+      # .devcontainer/Dockerfile + applies features + runs runCmd inside.
+      # ───────────────────────────────────────────────────────────────────
+      - name: Run 4 mandatory gates inside dev container
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: ghcr.io/${{ github.repository }}/dev-container
+          cacheFrom: ghcr.io/${{ github.repository }}/dev-container
+          push: never # 不 push image to GHCR (avoids needing GITHUB_TOKEN write perm)
+          # devcontainers/ci@v0.3 不自動 propagate host env vars 進 container,
+          # 須顯式 export CI=true 讓 vitest sc007 之 describe.skipIf(process.env.CI === 'true')
+          # 在 CI runner 內生效 (per fix/sc007-ci-threshold PR #22 commit ec725df)
+          runCmd: |
+            set -euo pipefail
+            export CI=true
+            pnpm install --frozen-lockfile
+            pnpm typecheck
+            pnpm lint
+            pnpm test:node
+            pnpm test:worker
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # wrangler-bundle-check — verify Worker bundle clean + size budget (T005 /
+  # per FR-003 第 2 條 + ci-gates.md §3 + research §4)
+  # Status: mandatory; branch protection 須加入 Required status checks 清單
+  # Mechanizes 002 FR-009 + SC-003 (bundle 不含 Node-only modules) +
+  # 003 SC-005 (bundle size ≤ 100 KiB).
+  # ═══════════════════════════════════════════════════════════════════════
+  wrangler-bundle-check:
+    name: wrangler-bundle-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15 # cache hit ≤ 3 min;cache miss ≤ 10 min;5 min margin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pre-create devcontainer mount sources
+        run: |
+          mkdir -p ~/.claude
+          [ -f ~/.claude.json ] || echo '{}' > ~/.claude.json
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/pnpm/store
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node_modules-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            node_modules-${{ runner.os }}-
+
+      # ───────────────────────────────────────────────────────────────────
+      # Inside dev container: wrangler dry-run + grep + size assertion
+      # (per research §4 + ci-gates.md §3.1)
+      # 7 forbidden modules: pg / redis / pino / prom-client /
+      # @hono/node-server / node:fs / node:child_process
+      # Bundle budget: 100 KiB (~64 KiB current, 50% headroom; per spec Q2 + SC-005)
+      # ───────────────────────────────────────────────────────────────────
+      - name: Run wrangler bundle check inside dev container
+        uses: devcontainers/ci@v0.3
+        with:
+          imageName: ghcr.io/${{ github.repository }}/dev-container
+          cacheFrom: ghcr.io/${{ github.repository }}/dev-container
+          push: never
+          runCmd: |
+            set -euo pipefail
+            pnpm install --frozen-lockfile
+            # wrangler v4 之 `--dry-run` 不寫 bundle 至 disk (只算 + print stats);
+            # 加 `--outdir` 強制寫出 .wrangler/dryrun/index.js 供 grep + size assertion
+            pnpm exec wrangler deploy --dry-run --outdir .wrangler/dryrun
+
+            BUNDLE=.wrangler/dryrun/index.js
+            if [ ! -f "$BUNDLE" ]; then
+              echo "❌ Bundle not found at $BUNDLE — wrangler dry-run failed silently?"
+              ls -la .wrangler/ 2>&1 || echo "(.wrangler/ missing entirely)"
+              exit 1
+            fi
+
+            # Check 1: bundle 不含 Node-only modules (002 FR-009 / SC-003)
+            FORBIDDEN=("pg" "redis" "pino" "prom-client" "@hono/node-server" "node:fs" "node:child_process")
+            FAIL=0
+            for mod in "${FORBIDDEN[@]}"; do
+              if grep -q "$mod" "$BUNDLE"; then
+                echo "❌ BUNDLE CONTAINS FORBIDDEN MODULE: $mod"
+                grep -n "$mod" "$BUNDLE" | head -5
+                FAIL=1
+              fi
+            done
+            if [ "$FAIL" -ne 0 ]; then
+              exit 1
+            fi
+
+            # Check 2: bundle size ≤ 100 KiB (003 SC-005)
+            SIZE=$(wc -c < "$BUNDLE")
+            BUDGET=$((100 * 1024))
+            if [ "$SIZE" -gt "$BUDGET" ]; then
+              echo "❌ BUNDLE SIZE $SIZE bytes ($((SIZE / 1024)) KiB) exceeds budget $BUDGET bytes (100 KiB)"
+              exit 1
+            fi
+            echo "✅ bundle clean: $SIZE bytes ($((SIZE / 1024)) KiB), budget $((BUDGET / 1024)) KiB"
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # secret-scan — gitleaks scan PR diff or full git history (T006 / per
+  # FR-003 第 3 條 + ci-gates.md §4 + research §2)
+  # Status: mandatory; branch protection 須加入 Required status checks 清單
+  # Mechanizes 001 SC-006 (zero OAuth credentials in git history).
+  # NOT inside dev container (gitleaks-action is standalone — no need
+  # for Node / pnpm / wrangler).
+  # ═══════════════════════════════════════════════════════════════════════
+  secret-scan:
+    name: secret-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (full history for git log scan)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 全 history,讓 gitleaks 可掃 git log on push to main
+
+      - name: Run gitleaks (PR diff for PR; full history for push to main)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 預設行為:PR mode 掃 PR diff;non-PR (push) 掃 git log
+          # gitleaks 預設 redact secret value (only file + line shown);per FR-011
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # spec-coverage-advisory — comment when PR touches src/** but no
+  # specs/NNN-*/ artifact updated (T013 / per FR-008 第 1 條 +
+  # ci-gates.md §5 + research §6, §11)
+  # Status: ADVISORY (never blocks merge); NOT in branch protection list
+  # Mechanizes 001 SC-003 advisory提示 (reviewer 仍保留豁免權)
+  # ═══════════════════════════════════════════════════════════════════════
+  spec-coverage-advisory:
+    name: spec-coverage-advisory
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write # 須能 post comment
+      contents: read
+    steps:
+      - name: Check spec coverage + post advisory if needed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+
+            // FR-009: skip 完全 doc-only PR (動 specs/** + .docs/** + *.md only)
+            const isDocFile = (f) =>
+              f.startsWith('specs/') ||
+              f.startsWith('.docs/') ||
+              f.endsWith('.md');
+            const isDocOnly = files.every((f) => isDocFile(f.filename));
+            if (isDocOnly) {
+              core.info('Doc-only PR — skip spec-coverage-advisory (per FR-009)');
+              return;
+            }
+
+            // Trigger condition: PR touches src/** but does NOT touch specs/NNN-*/
+            const touchesSrc = files.some((f) => f.filename.startsWith('src/'));
+            const touchesSpecs = files.some((f) => f.filename.startsWith('specs/'));
+
+            if (touchesSrc && !touchesSpecs) {
+              const body = [
+                '⚠ **Advisory: spec coverage**',
+                '',
+                'This PR modifies `src/**` but no `specs/NNN-*/` artifact was added or updated.',
+                '',
+                'Per 001 baseline FR-004 (spec-kit pipeline) + SC-003, non-trivial changes',
+                'should correspond to a spec directory. Reviewer please decide:',
+                '',
+                '- (a) This is a trivial change exempt from spec coverage (per FR-004 trivial 豁免)',
+                '  — leave a comment in this PR explaining the exemption rationale',
+                '- (b) Open a spec PR first, then update this PR to reference it',
+                '',
+                '_This advisory does NOT block merge. It re-fires on every push (per design)._',
+                '_Spec: `specs/003-ci-workflow/contracts/ci-gates.md` §5_',
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+              core.info('Posted spec-coverage-advisory comment');
+            } else {
+              core.info('PR has matching spec coverage OR does not touch src/ — no comment');
+            }
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # toolchain-isolation-advisory — comment when PR mixes deps + src changes
+  # (T015 / per FR-008 第 2 條 + ci-gates.md §6 + research §6, §11)
+  # Status: ADVISORY (never blocks merge); NOT in branch protection list
+  # Mechanizes 001 FR-019 advisory提示 (toolchain isolated commit nudge)
+  # ═══════════════════════════════════════════════════════════════════════
+  toolchain-isolation-advisory:
+    name: toolchain-isolation-advisory
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+      contents: read
+    steps:
+      - name: Check toolchain isolation + post advisory if needed
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              per_page: 100,
+            });
+
+            // FR-009: skip doc-only PR (same logic as spec-coverage-advisory;
+            // inline duplicate per plan §Constitution Check IV note "本 task
+            // 初版用 inline 重複,後續 follow-up 抽 composite action")
+            const isDocFile = (f) =>
+              f.startsWith('specs/') ||
+              f.startsWith('.docs/') ||
+              f.endsWith('.md');
+            const isDocOnly = files.every((f) => isDocFile(f.filename));
+            if (isDocOnly) {
+              core.info('Doc-only PR — skip toolchain-isolation-advisory (per FR-009)');
+              return;
+            }
+
+            // Trigger condition: PR touches BOTH (package.json or pnpm-lock.yaml)
+            // AND (src/** or tests/**)
+            const touchesDeps = files.some(
+              (f) => f.filename === 'package.json' || f.filename === 'pnpm-lock.yaml'
+            );
+            const touchesSrcOrTests = files.some(
+              (f) => f.filename.startsWith('src/') || f.filename.startsWith('tests/')
+            );
+
+            if (touchesDeps && touchesSrcOrTests) {
+              const body = [
+                '⚠ **Advisory: toolchain isolation**',
+                '',
+                'This PR modifies BOTH toolchain (`package.json` / `pnpm-lock.yaml`) AND',
+                'application code (`src/**` / `tests/**`).',
+                '',
+                'Per 001 baseline FR-019 + 002 spec assumption #6, toolchain bumps should',
+                'be isolated commits / PRs to enable single-commit revert. Reviewer please',
+                'decide:',
+                '',
+                '- (a) Split into two PRs (recommended)',
+                '- (b) Leave a comment in this PR explaining why bundling is necessary',
+                '  (e.g. dep upgrade requires src adaptation in same logical change)',
+                '',
+                '_This advisory does NOT block merge. It re-fires on every push (per design)._',
+                '_Spec: `specs/003-ci-workflow/contracts/ci-gates.md` §6_',
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+              core.info('Posted toolchain-isolation-advisory comment');
+            } else {
+              core.info('PR is toolchain-only OR src-only — no comment');
+            }

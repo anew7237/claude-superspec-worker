@@ -1,0 +1,101 @@
+# Dependabot configuration — 003-ci-workflow T010
+#
+# Per spec.md FR-006 + FR-007 + contracts/dependabot-policy.md §2-3 +
+# research.md §5. Two ecosystems (npm + github-actions). Weekly Monday
+# scan. PR commits follow `chore(deps): bump xxx` convention (per 001
+# FR-019 toolchain isolated commit).
+#
+# Major bumps: NOT grouped (Dependabot 預設行為 → 各自獨立 PR);
+# minor + patch: grouped per ecosystem family to keep transitive deps
+# aligned (lesson from issue #15 wrangler/workerd dedupe drift).
+#
+# Spec: specs/003-ci-workflow/spec.md
+# Contract: specs/003-ci-workflow/contracts/dependabot-policy.md
+
+version: 2
+
+updates:
+  # ═══════════════════════════════════════════════════════════════════════
+  # npm ecosystem — package.json dependencies + devDependencies
+  # 4 grouping rules + major-as-separate-PR (Dependabot default)
+  # ═══════════════════════════════════════════════════════════════════════
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 5
+    target-branch: 'main'
+    commit-message:
+      prefix: 'chore(deps)'
+      include: 'scope'
+    groups:
+      # Cloudflare ecosystem: align workers-types / vitest-pool-workers /
+      # wrangler / future miniflare to same release cadence (issue #15
+      # root-cause: transitive workerd / wrangler dedupe drift)
+      cloudflare-ecosystem:
+        patterns:
+          - '@cloudflare/*'
+          - 'wrangler'
+          - 'miniflare'
+        update-types:
+          - 'minor'
+          - 'patch'
+
+      # TypeScript ESLint: parser + plugins + rules must align
+      typescript-eslint:
+        patterns:
+          - '@typescript-eslint/*'
+          - 'typescript-eslint'
+        update-types:
+          - 'minor'
+          - 'patch'
+
+      # Vitest: core + runner + spy + workers pool plugin must align
+      vitest:
+        patterns:
+          - '@vitest/*'
+          - 'vitest'
+        update-types:
+          - 'minor'
+          - 'patch'
+
+      # All other deps' minor + patch in one group to reduce PR noise
+      node-deps-minor-patch:
+        patterns:
+          - '*'
+        exclude-patterns:
+          - '@cloudflare/*'
+          - 'wrangler'
+          - 'miniflare'
+          - '@typescript-eslint/*'
+          - 'typescript-eslint'
+          - '@vitest/*'
+          - 'vitest'
+        update-types:
+          - 'minor'
+          - 'patch'
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # GitHub Actions ecosystem — .github/workflows/*.yml action versions
+  # Monitors actions/checkout / pnpm/action-setup / actions/cache /
+  # actions/github-script / devcontainers/ci / gitleaks/gitleaks-action
+  # (per research §13 工具鏈 anchor 一覽)
+  # ═══════════════════════════════════════════════════════════════════════
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      day: 'monday'
+    open-pull-requests-limit: 3
+    target-branch: 'main'
+    commit-message:
+      prefix: 'chore(deps)'
+      include: 'scope'
+    groups:
+      github-actions-minor-patch:
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
