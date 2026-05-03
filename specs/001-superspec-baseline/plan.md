@@ -18,7 +18,7 @@
 
 **Language/Version**: TypeScript 5.7+(strict mode)。Bash + uv(spec-kit 安裝)。Node.js ≥ 22(由 `package.json` `engines.node` + `.npmrc` `engine-strict=true` 機器強制)。Worker runtime 將跑於 Cloudflare Workers V8 isolate(由 002 落地;在 v1.0.0 ratification 時尚未引入 `wrangler` 與 Workers types)。
 
-**Primary Dependencies**: Node 端 — Hono 4.x + `@hono/node-server`、`pg`(PostgreSQL)、`redis`、`pino`(structured log)、`prom-client`(metrics)。Worker 端(forward-declared,由 002 引入) — Hono(共用)、`wrangler` 3.x、`@cloudflare/workers-types`、`@cloudflare/vitest-pool-workers`。Spec-kit 0.8.1、Anthropic devcontainer feature `claude-code:1`、`docker-outside-of-docker:1`、`node:1`、`git:1`、`github-cli:1`、obra/superpowers skills。
+**Primary Dependencies**: Node 端 — Hono 4.x + `@hono/node-server`、`pg`(PostgreSQL)、`redis`、`pino`(structured log)、`prom-client`(metrics)。Worker 端(forward-declared,由 002 引入;**reserved — not in `package.json` at v1.0.0 ratification**,per Q3 Clarification) — Hono(共用)、`wrangler` 3.x、`@cloudflare/workers-types`、`@cloudflare/vitest-pool-workers`。Spec-kit 0.8.1、Anthropic devcontainer feature `claude-code:1`、`docker-outside-of-docker:1`、`node:1`、`git:1`、`github-cli:1`、obra/superpowers skills。
 
 **Storage**: PostgreSQL via `pg`、Redis via `redis`(Node 端 stack)。Worker 端規劃使用 D1(SQL)+ KV(cache),由 002 落地。本 baseline 不引入新 storage,不變更 schema。
 
