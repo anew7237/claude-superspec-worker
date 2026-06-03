@@ -205,7 +205,7 @@ jobs:
           fetch-depth: 0 # 全 history,讓 gitleaks 可掃 git log on push to main
 
       - name: Run gitleaks (PR diff for PR; full history for push to main)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # gitleaks-action@v2 之 mode 由 GitHub Actions event 自動決定
